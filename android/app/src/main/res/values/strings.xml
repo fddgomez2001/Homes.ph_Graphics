@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Homes.ph Carousels</string>
+    <string name="title_activity_main">Homes.ph Carousels</string>
+    <string name="package_name">ph.homes.carousels</string>
+    <string name="custom_url_scheme">ph.homes.carousels</string>
+</resources>
