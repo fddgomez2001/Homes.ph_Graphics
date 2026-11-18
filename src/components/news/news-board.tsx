@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent } from "react"
 import { useRouter } from "next/navigation"
 import { addDays, format, startOfDay } from "date-fns"
-import { ClipboardPaste, Download, ImagePlus, Loader2, PencilLine } from "lucide-react"
+import { ClipboardPaste, Download, ImagePlus, Loader2, PencilLine, Shapes } from "lucide-react"
 import { toast } from "sonner"
 import { useProjectSlides, useSlideRenders, type BoardSlide } from "@/components/board/slide-renders"
 import { useExport } from "@/components/export/export-provider"
@@ -16,15 +16,17 @@ import { createNewsArticle, newsHeadline, storeNewsPhoto, updateNewsArticle, typ
 import { combineDateTime } from "@/lib/dates"
 import {
   getNewsTemplate,
-  NEWS_BRANDS,
+  articleTemplatesFor,
+  defaultArticleTemplate,
+  isPosterTemplate,
   newsBrandOf,
   newsFileName,
-  newsTemplatesFor,
-  newsTimesFor,
-  type NewsBrand,
+  newsPostLabel,
+  type DailyBrand,
   type NewsTemplate,
   type NewsTime,
 } from "@/lib/design/news-templates"
+import { laneOfDesign, slotKeyOf, type NewsLane } from "@/lib/news-lanes"
 import type { ProjectRow } from "@/lib/types"
 import { NEWS_HEADLINE_PLACEHOLDER } from "@/lib/design/templates"
 import { cn, errorMessage } from "@/lib/utils"
@@ -53,12 +55,11 @@ function useTemplatePreview(template: NewsTemplate) {
 }
 
 /**
- * News Article, daily posts: for one day, a row per brand (PicklePlay PH, FHI
- * Global Property) with the five posting times. Each slot is a template ready
- * to paste a photo into and type the headline; it becomes a news article
- * scheduled at that time as soon as something is added.
+ * News Article, daily posts: for one day, the chosen page's row (PicklePlay PH, FHI Global Property, a Homes.ph
+ * page…) with its five posting times. Each slot is a template ready to paste a photo into and type the headline;
+ * it becomes a news article scheduled at that time as soon as something is added.
  */
-export function NewsBoard({ day, actions }: { day: Date; actions: ProjectActions }) {
+export function NewsBoard({ day, lane, actions }: { day: Date; lane: NewsLane; actions: ProjectActions }) {
   const from = startOfDay(day)
   // Cached per query (the key is the query itself), like every other list.
   const { projects, loading, error } = useProjects({
@@ -72,42 +73,61 @@ export function NewsBoard({ day, actions }: { day: Date; actions: ProjectActions
   const slides = useProjectSlides(projects)
   const renders = useSlideRenders(slides)
 
-  // Each article goes in its brand's row at its time; anything else is listed below.
+  // Each article goes in its page's row at its time; this page's others (and posts of no page) are listed below.
   const { slots, others } = useMemo(() => {
     const slots = new Map<string, ProjectRow>()
     const others: ProjectRow[] = []
     for (const p of projects) {
       const design = slides.get(p.id)?.[0]?.design
-      if (!design) continue
-      const brand = newsBrandOf(design)
-      const time = p.scheduled_at ? format(new Date(p.scheduled_at), "HH:mm") : ""
-      const key = `${brand}@${time}`
-      if (!slots.has(key) && newsTimesFor(brand).some((t) => t.time === time)) slots.set(key, p)
-      else others.push(p)
+      // Posters belong to the Poster Maker, not to News Article.
+      if (!design || isPosterTemplate(design.templateId)) continue
+      const key = slotKeyOf(design, p.scheduled_at)
+      if (key && !slots.has(key)) slots.set(key, p)
+      else {
+        const page = laneOfDesign(design)
+        if (!page || page === lane.id) others.push(p)
+      }
     }
     return { slots, others }
-  }, [projects, slides])
+  }, [projects, slides, lane.id])
   const waiting = loading || projects.some((p) => !slides.get(p.id))
+  const brand = lane.brand
+
+  if (!brand)
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed bg-card px-6 py-14 text-center">
+        <Shapes className="size-8 text-muted-foreground" />
+        <div>
+          <p className="font-medium">No News Article template for {lane.name} yet</p>
+          <p className="mx-auto max-w-md text-sm text-muted-foreground">
+            Its articles are still posted from the dash (the Homes.ph Publisher extension uses the dash&apos;s own picture). Send the Figma design to add its template here.
+          </p>
+        </div>
+      </div>
+    )
 
   return (
     <div className="flex flex-col gap-10">
       {error && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-      {NEWS_BRANDS.map((brand) => (
-        <section key={brand.id} aria-label={`${brand.name} posts`}>
+      {[lane].map((row) => (
+        <section key={row.id} aria-label={`${row.name} posts`}>
           <h2 className="mb-4 flex items-baseline gap-2 border-b pb-2">
-            <span className="text-base font-semibold">{brand.name}</span>
-            <span className="text-xs text-muted-foreground">{brand.site} · 5 posts a day</span>
+            <span className="text-base font-semibold">{row.name}</span>
+            <span className="text-xs text-muted-foreground">
+              {row.site} · {row.times.length} posts a day
+            </span>
           </h2>
           <div className="overflow-x-auto pb-2">
-            <ul className="grid min-w-[1100px] grid-cols-5 items-start gap-5" aria-label={`${brand.name} posting times`}>
-              {newsTimesFor(brand.id).map((slot) => {
-                const project = slots.get(`${brand.id}@${slot.time}`)
+            <ul className="grid min-w-[1100px] grid-cols-5 items-start gap-5" aria-label={`${row.name} posting times`}>
+              {row.times.map((slot) => {
+                const project = slots.get(`${row.id}@${slot.time}`)
                 const slide = project ? slides.get(project.id)?.[0] : undefined
                 return (
-                  <li key={`${ymd(from)}-${slot.time}`}>
+                  <li key={`${row.id}-${ymd(from)}-${slot.time}`}>
                     <NewsSlot
-                      brand={brand.id}
-                      brandName={brand.name}
+                      brand={brand}
+                      page={row.page}
+                      brandName={row.name}
                       slot={slot}
                       day={from}
                       project={project}
@@ -127,11 +147,20 @@ export function NewsBoard({ day, actions }: { day: Date; actions: ProjectActions
         <section aria-label="Other news articles this day">
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Also on this day</h2>
           <ul className="flex flex-wrap gap-2">
-            {others.map((p) => (
-              <li key={p.id} className="rounded-md border bg-card px-3 py-1.5 text-sm">
-                {p.scheduled_at ? format(new Date(p.scheduled_at), "h:mm a") : "No time"} · {p.title}
-              </li>
-            ))}
+            {others.map((p) => {
+              const design = slides.get(p.id)?.[0]?.design
+              const text = (
+                <>
+                  {p.scheduled_at ? format(new Date(p.scheduled_at), "h:mm a") : "No time"} · {design ? `${newsPostLabel(newsBrandOf(design), design.page)} · ` : ""}
+                  {p.title}
+                </>
+              )
+              return (
+                <li key={p.id} className="rounded-md border bg-card px-3 py-1.5 text-sm">
+                  {text}
+                </li>
+              )
+            })}
           </ul>
         </section>
       )}
@@ -141,6 +170,7 @@ export function NewsBoard({ day, actions }: { day: Date; actions: ProjectActions
 
 function NewsSlot({
   brand,
+  page,
   brandName,
   slot,
   day,
@@ -150,7 +180,9 @@ function NewsSlot({
   waiting,
   actions,
 }: {
-  brand: NewsBrand
+  brand: DailyBrand | "homes"
+  /** The Homes.ph page's name, kept on its posts ("homes" brand). */
+  page: string | null
   brandName: string
   slot: NewsTime
   day: Date
@@ -162,8 +194,9 @@ function NewsSlot({
 }) {
   const router = useRouter()
   const { runExport, busy: exporting } = useExport()
-  const templates = newsTemplatesFor(brand)
-  const [emptyTemplateId, setEmptyTemplateId] = useState(templates[0].id)
+  const templates = articleTemplatesFor(brand)
+  // FHI alternates Portrait / Wide day by day; the other brands start with their first template.
+  const [emptyTemplateId, setEmptyTemplateId] = useState(() => defaultArticleTemplate(brand, day).id)
   const template = getNewsTemplate(slide?.design.templateId) ?? getNewsTemplate(emptyTemplateId)!
   const preview = useTemplatePreview(template)
   // FHI Template 1 (portrait) shows the headline in capitals; Template 2 as typed.
@@ -177,6 +210,8 @@ function NewsSlot({
   const fileRef = useRef<HTMLInputElement>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const label = `${slot.label} ${brandName}`
+  // Posters open in the Poster Maker (headline highlight, photo credit); other articles in the editor.
+  const editHref = (id: string) => `/editor/${id}`
 
   // A headline saved elsewhere (editor, another window) shows here unless you're typing.
   if (saved !== lastSaved) {
@@ -205,6 +240,7 @@ function NewsSlot({
         headline: change.headline ?? headline,
         scheduledAt: combineDateTime(ymd(day), slot.time),
         photo: change.photo,
+        page,
       })
       await created.current.catch((e) => {
         created.current = null
@@ -284,7 +320,7 @@ function NewsSlot({
         onPaste={onPaste}
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
-        onDoubleClick={() => project && router.push(`/editor/${project.id}`)}
+        onDoubleClick={() => project && router.push(editHref(project.id))}
         className="group relative w-full overflow-hidden bg-muted shadow-sm ring-1 ring-black/10 outline-none focus-visible:ring-3 focus-visible:ring-primary"
         style={{ aspectRatio: `${template.width} / ${template.height}` }}
       >
@@ -352,19 +388,23 @@ function NewsSlot({
                 else setEmptyTemplateId(t.id)
               }}
               className={cn(
-                "flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors",
+                "flex flex-1 flex-col items-center rounded px-2 py-1 text-[11px] leading-tight font-medium transition-colors",
                 t.id === template.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}
               title={`${t.name} (${t.size})`}
             >
-              {t.name.replace(/^Template \d · /, "")}
+              {/* "New Template" with "1126x1408" under it. */}
+              <span>{t.name.replace(/^Template \d · /, "")}</span>
+              <span className="text-[10px] font-normal tabular-nums opacity-80">
+                {t.width}x{t.height}
+              </span>
             </button>
           ))}
         </div>
       )}
       {project && slide && (
         <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(`/editor/${project.id}`)}>
+          <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(editHref(project.id))}>
             <PencilLine /> Edit
           </Button>
           <Button

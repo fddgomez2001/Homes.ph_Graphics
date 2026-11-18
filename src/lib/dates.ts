@@ -74,3 +74,33 @@ export function formatSchedule(value: string | null): string {
   const d = new Date(value)
   return isValid(d) ? format(d, "EEE, MMM d · h:mm a") : "No date"
 }
+
+export interface ScheduleMove {
+  id: string
+  title: string
+  /** ISO times. */
+  from: string
+  to: string
+}
+
+/**
+ * A new carousel takes `day` as the priority: the carousels already on that day move one day
+ * later, and so do the ones on the following days, until a free day (each moves by one day and
+ * keeps its time). Posted carousels never move. [] when the day is free.
+ */
+export function planPriorityInsert(carousels: { id: string; title: string; scheduled_at: string | null; status: string }[], day: Date): ScheduleMove[] {
+  const byDay = new Map<string, typeof carousels>()
+  for (const c of carousels) {
+    if (!c.scheduled_at || c.status === "published") continue
+    const key = format(new Date(c.scheduled_at), "yyyy-MM-dd")
+    byDay.set(key, [...(byDay.get(key) ?? []), c])
+  }
+  const moves: ScheduleMove[] = []
+  let cursor = startOfDay(day)
+  for (let i = 0; i < 3660; i++, cursor = addDays(cursor, 1)) {
+    const here = byDay.get(format(cursor, "yyyy-MM-dd"))
+    if (!here?.length) break
+    for (const c of here) moves.push({ id: c.id, title: c.title, from: c.scheduled_at!, to: addDays(new Date(c.scheduled_at!), 1).toISOString() })
+  }
+  return moves
+}

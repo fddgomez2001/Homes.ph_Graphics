@@ -63,6 +63,29 @@ if (!fs.existsSync(path.join(out, "index.html"))) {
 }
 // That build wrote route types for its one page into .next/types: put back the full app's.
 run("npx", ["next", "typegen"])
+// The Poster Maker's photo enhancer (AI runtime and model, ~32 MB) isn't on the phone.
+for (const dir of ["ort", "models", "enhance"]) fs.rmSync(path.join(out, dir), { recursive: true, force: true })
+// Neither are the Figma sources the templates were made from, or the Advertisement page's templates (ads are made
+// and kept on the computer): about 180 MB.
+for (const dir of ["Pickleplay Templates", "ads", path.join("brand", "carousel", "Carousel Cover Templates")]) fs.rmSync(path.join(out, dir), { recursive: true, force: true })
+
+// The Publisher tab runs the Chrome extension's own files (and two of the app's, for its pages).
+console.log("› Adding the Homes.ph Publisher's files…")
+{
+  const from = path.join(root, "chrome-extension")
+  const to = path.join(out, "publisher")
+  fs.mkdirSync(to, { recursive: true })
+  for (const name of fs.readdirSync(from)) if (/\.(js|png)$/.test(name)) fs.copyFileSync(path.join(from, name), path.join(to, name))
+  for (const name of ["tab-shim.js", "page-start.js"]) fs.copyFileSync(path.join(root, "scripts", "publisher", name), path.join(to, name))
+  // Options opens inside the app's page: it uses the app's "chrome", and fits a phone.
+  const options = fs.readFileSync(path.join(from, "options.html"), "utf8")
+  const head = ['<meta charset="utf-8" />', '<meta name="viewport" content="width=device-width, initial-scale=1" />', "<script>window.chrome = parent.chrome</script>"].join("\n    ")
+  if (!options.includes('<meta charset="utf-8" />')) {
+    console.error("  ! chrome-extension/options.html changed: its <meta charset> line wasn't found.")
+    process.exit(1)
+  }
+  fs.writeFileSync(path.join(to, "options.html"), options.replace('<meta charset="utf-8" />', () => head))
+}
 
 console.log("› Checking for secrets…")
 const env = { ...parseEnv(path.join(root, ".env")), ...parseEnv(path.join(root, ".env.local")) }

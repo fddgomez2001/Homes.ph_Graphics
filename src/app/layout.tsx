@@ -1,4 +1,6 @@
 import type { Metadata } from "next"
+import { DesktopKeysSync } from "@/components/ai/desktop-keys-sync"
+import { ExtensionBridge } from "@/components/extension/extension-bridge"
 import { ConfirmProvider } from "@/components/confirm-dialog"
 import { ThemeSync } from "@/components/theme/theme"
 import { Toaster } from "@/components/ui/sonner"
@@ -26,14 +28,27 @@ import "@fontsource/plus-jakarta-sans/500.css"
 import "@fontsource/plus-jakarta-sans/600.css"
 import "@fontsource/plus-jakarta-sans/700.css"
 import "@fontsource/plus-jakarta-sans/800.css"
+import "@fontsource/league-spartan/400.css"
+import "@fontsource/league-spartan/500.css"
+import "@fontsource/league-spartan/600.css"
+import "@fontsource/league-spartan/700.css"
+import "@fontsource/league-spartan/800.css"
+import "@fontsource/league-spartan/900.css"
+import "@fontsource/poppins/300.css"
+import "@fontsource/poppins/400.css"
+import "@fontsource/poppins/500.css"
+import "@fontsource/poppins/600.css"
+import "@fontsource/poppins/700.css"
+import "@fontsource/poppins/800.css"
+import "@fontsource/playfair-display/700.css"
 import { IS_MOBILE_APP } from "@/lib/env"
 import { THEME_SCRIPT } from "@/lib/theme-script"
 import "./globals.css"
 
 export const metadata: Metadata = {
   title: {
-    default: "Daily Carousel Maker · Homes.ph",
-    template: "%s · Daily Carousel Maker",
+    default: "Homes.ph SocMedSystem",
+    template: "%s · Homes.ph SocMedSystem",
   },
   description: "Plan, design and export Homes.ph social media carousels.",
 }
@@ -47,6 +62,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full">
         <ThemeSync />
+        <DesktopKeysSync />
+        <ExtensionBridge />
         <TooltipProvider delayDuration={300}>
           <ConfirmProvider>{children}</ConfirmProvider>
         </TooltipProvider>

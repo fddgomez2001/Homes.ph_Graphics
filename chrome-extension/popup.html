@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Homes.ph Publisher</title>
+    <style id="panel-css"></style>
+    <style>
+      /* A fixed width from the first moment: the popup never starts narrow and tall. */
+      html, body { margin: 0; padding: 0; background: #fff; width: 380px; }
+      body { min-height: 150px; overflow-x: hidden; }
+      /* Never taller than a popup can be (600 px): only the list in the middle scrolls. */
+      #root .hp-panel { border-radius: 0; box-shadow: none; border: 0; width: 380px; max-width: none; max-height: 600px; display: flex; flex-direction: column; }
+      #root .hp-panel > * { flex: none; }
+      #root .hp-panel > .hp-body { flex: 1 1 auto; min-height: 0; max-height: none; }
+      .hp-starting { font: 13px/1.4 "Segoe UI", system-ui, sans-serif; color: #0f172a; }
+      .hp-starting-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 12px; background: linear-gradient(135deg, #1428AE, #0D1969); color: #fff; }
+      .hp-starting-head img { width: 28px; height: 28px; border-radius: 8px; background: #fff; padding: 2px; box-sizing: border-box; }
+      .hp-starting-head b { display: block; font-size: 14px; }
+      .hp-starting-head span { font-size: 11px; opacity: .85; }
+      .hp-starting-body { display: flex; align-items: center; gap: 10px; padding: 18px 16px; color: #334155; }
+      .hp-starting-dot { width: 16px; height: 16px; border: 2.5px solid #1428AE; border-right-color: transparent; border-radius: 50%; animation: hp-start-spin .8s linear infinite; flex: none; box-sizing: border-box; }
+      @keyframes hp-start-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .hp-starting-dot { animation-duration: 2.4s; } }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="hp-starting" role="status" aria-live="polite">
+        <div class="hp-starting-head"><img alt="" src="icon-48.png" /><div><b>Homes.ph Publisher</b><span>Posting · Trending · Ads · Quotes · Reports</span></div></div>
+        <div class="hp-starting-body"><span class="hp-starting-dot" aria-hidden="true"></span><span>Starting… getting today's posts ready.</span></div>
+      </div>
+    </div>
+    <script src="shared.js"></script>
+    <script src="panel.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

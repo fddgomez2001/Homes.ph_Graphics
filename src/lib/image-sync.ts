@@ -38,6 +38,9 @@ export function registerOpenProject(id: string) {
   }
 }
 
+/** A carousel or poster open in an editor right now (its saves come from there). */
+export const isOpenInEditor = (id: string) => openProjects.has(id)
+
 export function announceUploaded(image: UploadedImage) {
   imageEvents.dispatchEvent(new CustomEvent<UploadedImage>("uploaded", { detail: image }))
 }
@@ -138,6 +141,17 @@ export async function syncPendingImages({ fresh = false }: { fresh?: boolean } =
     })
   }
   return running
+}
+
+/**
+ * Before a post opens in the editor (1.53): its photos that are still uploading are finished, and the post points
+ * at the uploaded copies, first. Done later, that update would land under the open editor ("Conflict": its
+ * changes wouldn't save). Gives up after `maxMs` (the editor then opens anyway).
+ */
+export async function settleUploadsOf(projectId: string, maxMs = 20_000): Promise<void> {
+  const pending = await listPending().catch(() => [])
+  if (!pending.some((p) => p.projectIds.includes(projectId))) return
+  await Promise.race([syncPendingImages({ fresh: true }).catch(() => undefined), new Promise((resolve) => setTimeout(resolve, maxMs))])
 }
 
 /** Keeps retrying waiting uploads: on start, when back online, and every two minutes. */

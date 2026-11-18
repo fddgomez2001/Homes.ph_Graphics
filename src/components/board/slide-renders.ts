@@ -56,9 +56,11 @@ export function useProjectSlides(projects: Pick<ProjectRow, "id" | "updated_at">
 /**
  * Renders slide previews one at a time, `size` px wide (600 is sharp up to ~2× zoom).
  * Kept on this device, so a carousel is drawn again only after it changes. The
- * returned map is keyed by `BoardSlide.key`.
+ * returned map is keyed by `BoardSlide.key`. `prepare`: the designs were just built
+ * (e.g. a poster on another brand's template), so their text is fitted first (only
+ * when a preview is drawn, not when it comes from the cache).
  */
-export function useSlideRenders(slides: Map<string, BoardSlide[]>, size = 600) {
+export function useSlideRenders(slides: Map<string, BoardSlide[]>, size = 600, prepare = false) {
   const cacheKey = (key: string) => (size === 600 ? key : `${size}:${key}`)
   const [renders, setRenders] = useState<Map<string, string>>(() => {
     const known = new Map<string, string>()
@@ -73,6 +75,7 @@ export function useSlideRenders(slides: Map<string, BoardSlide[]>, size = 600) {
     const all = [...slides.values()].flat()
     ;(async () => {
       const { renderThumbnail } = await import("@/lib/design/render")
+      const prepareDesign = prepare ? (await import("@/lib/design/prepare")).prepareDesign : null
       for (const slide of all) {
         if (cancelled) return
         const key = cacheKey(slide.key)
@@ -81,12 +84,14 @@ export function useSlideRenders(slides: Map<string, BoardSlide[]>, size = 600) {
           const stored = (await readCache<string>(`render:${key}`))?.data
           let url = stored ?? ""
           if (!stored) {
-            url = await renderThumbnail(slide.design, size, 0.88, false).then(
+            const design = prepareDesign ? await prepareDesign(slide.design).catch(() => slide.design) : slide.design
+            if (cancelled) return
+            url = await renderThumbnail(design, size, 0.88, false).then(
               (complete) => {
                 void writeCache(`render:${key}`, complete)
                 return complete
               },
-              () => renderThumbnail(slide.design, size, 0.88).catch(() => ""),
+              () => renderThumbnail(design, size, 0.88).catch(() => ""),
             )
           }
           renderCache.set(key, url)
@@ -100,6 +105,6 @@ export function useSlideRenders(slides: Map<string, BoardSlide[]>, size = 600) {
     }
     // cacheKey only depends on size
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slides, size])
+  }, [slides, size, prepare])
   return renders
 }

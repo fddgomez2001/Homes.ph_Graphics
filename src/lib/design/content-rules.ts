@@ -2,6 +2,7 @@ import { imageUpscaleFactor } from "./geometry"
 import type { MeasureText } from "./layout"
 import { textPadding } from "./konva-attrs"
 import type { SlideDesign, TextElement } from "./types"
+import { isContentCard } from "./templates"
 
 /** A Homes.ph content card's description should fill 2–3 lines. */
 export const DESCRIPTION_LINES = { min: 2, max: 3 } as const
@@ -21,7 +22,7 @@ export function lineCount(el: TextElement, measure: MeasureText): number {
 }
 
 export function cardDescription(design: SlideDesign): TextElement | undefined {
-  if (design.templateId !== "homes-card") return undefined
+  if (!isContentCard(design.templateId)) return undefined
   return design.elements.find((e): e is TextElement => e.type === "text" && e.role === "description" && e.visible)
 }
 

@@ -4,9 +4,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent }
 import type Konva from "konva"
 import type { KonvaEventObject } from "konva/lib/Node"
 import { ImagePlus, Replace } from "lucide-react"
-import { Layer, Line, Rect, Stage, Transformer } from "react-konva"
+import { Layer, Line, Path, Rect, Stage, Transformer } from "react-konva"
 import { Button } from "@/components/ui/button"
-import { CANVAS_SIZE, type DesignElement } from "@/lib/design/types"
+import { isPhotoSlot, slotAt, slotDef } from "@/lib/design/cover-collage"
+import { CANVAS_SIZE, type DesignElement, type ImageElement } from "@/lib/design/types"
 import { cn } from "@/lib/utils"
 import {
   ASSET_DRAG_TYPE,
@@ -19,6 +20,7 @@ import {
 } from "../image-import"
 import { useCurrentSlide, useEditor, useEditorStore } from "../store"
 import { ElementNode, type NodeHandlers } from "./element-nodes"
+import { useTemplateParts } from "./template-parts"
 import { TextEditOverlay } from "./text-edit-overlay"
 
 const PAD = 40
@@ -48,6 +50,8 @@ export function CanvasArea({ stageRef }: { stageRef: React.RefObject<Konva.Stage
     () => ({ v: [0, 40, canvasW / 2, canvasW - 40, canvasW], h: [0, 40, canvasH / 2, canvasH - 40, canvasH] }),
     [canvasW, canvasH],
   )
+  // A brand post's template layers (1.53).
+  const templateParts = useTemplateParts(slide.design)
   const selectedId = useEditor((s) => s.selectedId)
   const editingTextId = useEditor((s) => s.editingTextId)
   const cropId = useEditor((s) => s.cropId)
@@ -88,7 +92,8 @@ export function CanvasArea({ stageRef }: { stageRef: React.RefObject<Konva.Stage
     const tr = transformerRef.current
     const stage = stageRef.current
     if (!tr || !stage) return
-    const canTransform = selected && !selected.locked && selected.visible && editingTextId !== selected.id && cropId !== selected.id
+    // A collage photo slot keeps its place and shape: it gets an outline instead of resize handles.
+    const canTransform = selected && !selected.locked && selected.visible && editingTextId !== selected.id && cropId !== selected.id && !isPhotoSlot(selected)
     const node = canTransform ? stage.findOne(`#${selected.id}`) : null
     tr.nodes(node ? [node] : [])
     tr.getLayer()?.batchDraw()
@@ -128,10 +133,10 @@ export function CanvasArea({ stageRef }: { stageRef: React.RefObject<Konva.Stage
 
   const onWheel = (e: KonvaEventObject<WheelEvent>) => {
     const s = store.getState()
-    if (!s.cropId) return
+    // Scrolling zooms the photo being cropped, or the selected collage photo.
+    const el = slide.design.elements.find((x) => x.id === (s.cropId ?? s.selectedId))
+    if (el?.type !== "image" || !(s.cropId || (isPhotoSlot(el) && el.src))) return
     e.evt.preventDefault()
-    const el = slide.design.elements.find((x) => x.id === s.cropId)
-    if (el?.type !== "image") return
     const zoomValue = Math.min(5, Math.max(1, el.zoom * (e.evt.deltaY < 0 ? 1.06 : 1 / 1.06)))
     s.updateElement(el.id, { zoom: Math.round(zoomValue * 100) / 100 }, { history: `crop-zoom:${el.id}` })
   }
@@ -162,6 +167,15 @@ export function CanvasArea({ stageRef }: { stageRef: React.RefObject<Konva.Stage
       dragDepth.current = 0
       setDrag(null)
       const zone = zoneAt(e)
+      // A cover collage: the photo goes into the slot it was dropped on.
+      const slot = design.collage ? slotAt(design, canvasPoint(e)?.x ?? -1, canvasPoint(e)?.y ?? -1) : undefined
+      if (slot) {
+        const into: ImportTarget = { mode: "replace", slideId: slide.id, elementId: slot.id }
+        const dropped = readAssetDrag(e.dataTransfer)
+        if (dropped) await placeAsset(store, dropped, into)
+        else await importImageFiles(store, filesFromDataTransfer(e.dataTransfer).slice(0, 1), into)
+        return
+      }
       // Empty background slot: the main zone fills it. Otherwise the main zone adds a new image where it was dropped.
       const wantsBackground = bgEmpty ? zone === "primary" : zone === "secondary"
       const target: ImportTarget = wantsBackground
@@ -177,6 +191,7 @@ export function CanvasArea({ stageRef }: { stageRef: React.RefObject<Konva.Stage
   }
 
   const editingEl = design.elements.find((e) => e.id === editingTextId)
+  const selectedSlot = isPhotoSlot(selected) && selected.visible ? selected : null
 
   return (
     <div
@@ -230,13 +245,18 @@ export function CanvasArea({ stageRef }: { stageRef: React.RefObject<Konva.Stage
                 height={canvasH}
                 fill={design.background === "transparent" ? "rgba(0,0,0,0)" : design.background}
               />
-              {design.elements.map((el) => (
+              {design.elements
+                .filter((el) => !el.carrier)
+                .map((el) => (
                 <ElementNode
                   key={el.id}
                   el={el}
+                  templateImage={el.type === "image" && el.templatePart ? templateParts?.[el.templatePart] : undefined}
                   hidden={editingTextId === el.id}
                   cropping={cropId === el.id}
-                  interactive={!el.locked || cropId === el.id}
+                  // While a collage photo is selected, clicks and drags go to the photos only
+                  // (the title lies over them), until "Done" or Esc.
+                  interactive={(!el.locked || cropId === el.id) && !(selectedSlot && !isPhotoSlot(el))}
                   viewScale={scale}
                   handlers={handlers}
                 />
@@ -255,6 +275,9 @@ export function CanvasArea({ stageRef }: { stageRef: React.RefObject<Konva.Stage
                   dash={[8 / scale, 6 / scale]}
                   listening={false}
                 />
+              )}
+              {selectedSlot && (
+                <SlotOutline el={selectedSlot} scale={scale} />
               )}
               <Transformer
                 ref={transformerRef}
@@ -297,7 +320,26 @@ export function CanvasArea({ stageRef }: { stageRef: React.RefObject<Konva.Stage
             </div>
           )}
 
-          {drag && (
+          {selectedSlot && !cropId && !drag && (
+            <div className="absolute -top-11 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-lg border bg-card px-2 py-1 text-xs shadow-sm">
+              <span className="whitespace-nowrap text-muted-foreground">
+                {selectedSlot.src ? `Photo ${selectedSlot.slot.index}: drag the photo to move it · scroll to zoom · click another photo to edit it` : `Photo ${selectedSlot.slot.index}: drop a photo here, or pick one on the right`}
+              </span>
+              <Button size="xs" onClick={() => store.getState().select(null)}>
+                Done
+              </Button>
+            </div>
+          )}
+
+          {drag && design.collage && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center pb-6 text-sm font-medium">
+              <div className="flex items-center gap-2 rounded-lg bg-[#0F4C81]/90 px-3 py-2 text-white shadow">
+                <Replace className="size-4" /> Drop on a photo slot to put the picture there
+              </div>
+            </div>
+          )}
+
+          {drag && !design.collage && (
             <div className="pointer-events-none absolute inset-0 z-10 flex flex-col text-sm font-medium">
               <div
                 className={cn(
@@ -323,6 +365,18 @@ export function CanvasArea({ stageRef }: { stageRef: React.RefObject<Konva.Stage
       </div>
     </div>
   )
+}
+
+/** Outline of the selected collage photo slot, following its shape. */
+function SlotOutline({ el, scale }: { el: ImageElement; scale: number }) {
+  const def = slotDef(el.slot)
+  if (!def) return null
+  const look = { stroke: "#F97316", strokeWidth: 3 / scale, listening: false }
+  // The base photo lies under all the shapes: its box is outlined instead of the whole canvas.
+  if (def.base) return <Rect x={el.x} y={el.y} width={el.width} height={el.height} dash={[12 / scale, 8 / scale]} {...look} />
+  const sx = el.width / def.box.width
+  const sy = el.height / def.box.height
+  return <Path data={def.path} x={el.x - def.box.x * sx} y={el.y - def.box.y * sy} scaleX={sx} scaleY={sy} strokeScaleEnabled={false} {...look} strokeWidth={3} />
 }
 
 /** Snaps a dragged node's edges/center to the canvas center, edges and 40 px margins. */

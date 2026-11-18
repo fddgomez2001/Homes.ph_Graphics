@@ -5,8 +5,8 @@ import type Konva from "konva"
 import { GalleryVerticalEnd, ImageIcon, LayoutTemplate, Type, type LucideIcon } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { measureLineWidth, measureTextHeight } from "@/lib/design/measure"
-import { buildCardDesign } from "@/lib/design/templates"
+import { measureLineWidth, measureTextHeight, measureWidestLine } from "@/lib/design/measure"
+import { buildCardDesign, carouselBrandOfSlides } from "@/lib/design/templates"
 import type { TemplateContext } from "@/lib/design/templates"
 import type { EditorSlide } from "@/lib/design/types"
 import type { ProjectRow } from "@/lib/types"
@@ -17,7 +17,7 @@ import { ImagesPanel } from "./left/images-panel"
 import { SlidesPanel } from "./left/slides-panel"
 import { TemplatesPanel } from "./left/templates-panel"
 import { TextPanel } from "./left/text-panel"
-import { useAutosave } from "./persistence"
+import { useAutosave, type SaveAs } from "./persistence"
 import { useAutoLogo } from "./use-auto-logo"
 import { CaptionPanel } from "./right/caption-panel"
 import { LayersPanel } from "./right/layers-panel"
@@ -38,6 +38,10 @@ export interface EditorInit {
   initialSlideId?: string | null
   /** Add a new content card right away (from the Day Board's "Add card"). */
   addCard?: boolean
+  /** The Rentsouq.ae version of an FHI poster is edited (Poster Maker's Rentsouq.ae tab): how it's saved. */
+  saveAs?: SaveAs
+  /** "rentsouq": the version being edited (shown above the canvas). */
+  look?: "rentsouq" | null
 }
 
 type LeftTab = "slides" | "images" | "text" | "templates"
@@ -65,22 +69,26 @@ export default function Editor({ init }: { init: EditorInit }) {
       templateContext: init.templateContext,
       measure: measureTextHeight,
       measureLine: measureLineWidth,
+      measureWidest: measureWidestLine,
       dirty: init.dirty,
       initialSlideId: init.initialSlideId,
     })
-    if (init.addCard) created.getState().addSlide(buildCardDesign())
+    // A new card in the carousel's own brand (Homes.ph, FHI Global Property or PicklePlay).
+    if (init.addCard) created.getState().addSlide(buildCardDesign(carouselBrandOfSlides(init.slides.map((sl) => sl.design))))
     return created
   })
 
-  // Drop one-off query parameters (?slide=, ?add=) so a reload doesn't repeat them.
+  // Drop one-off query parameters (?slide=, ?add=) so a reload doesn't repeat them (which version is edited stays).
   useEffect(() => {
-    if (window.location.search) window.history.replaceState(null, "", window.location.pathname)
+    if (!window.location.search) return
+    const keep = new URLSearchParams(window.location.search).get("look")
+    window.history.replaceState(null, "", keep ? `${window.location.pathname}?look=${encodeURIComponent(keep)}` : window.location.pathname)
   }, [])
   const stageRef = useRef<Konva.Stage>(null)
   const [leftTab, setLeftTab] = useState<LeftTab | null>("slides")
   const [rightOpen, setRightOpen] = useState(false)
 
-  useAutosave(store)
+  useAutosave(store, init.saveAs)
   useSlideThumbnails(store)
   useAutoLogo(store)
   useEditorShortcuts(store)
@@ -92,6 +100,12 @@ export default function Editor({ init }: { init: EditorInit }) {
       <div className="flex h-dvh flex-col overflow-hidden bg-background">
         <EditorHeader onToggleRight={() => setRightOpen((o) => !o)} />
         <ConflictBanner />
+        {init.look === "rentsouq" && (
+          <p className="border-b bg-[#EFA01C]/12 px-4 py-1.5 text-xs text-foreground" role="note">
+            <b>Rentsouq.ae version.</b> Its sizes, positions and layout are its own (the FHI poster keeps its own). The headline, subtext, photo and
+            photo credit are the same on both.
+          </p>
+        )}
         <div className="relative flex min-h-0 flex-1">
           {/* Left: tool rail + panel */}
           <nav aria-label="Editor tools" className="flex w-16 shrink-0 flex-col items-center gap-1 border-r bg-card py-2">

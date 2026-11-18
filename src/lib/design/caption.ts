@@ -64,9 +64,30 @@ function subjectNoun(description: string) {
   return noun && /s$/i.test(noun) ? noun : null
 }
 
+/** Emoji for the topic of the post (first match wins), or ✨. */
+const TOPIC_EMOJIS: [RegExp, string][] = [
+  [/\b(christmas|holiday|noche buena|simbang gabi)/i, "🎄"],
+  [/\b(coffee|caf[eé]s?|starbucks)\b/i, "☕"],
+  [/\b(restaurants?|food|dishes|eats?|dining|kitchens?)\b/i, "🍽️"],
+  [/\b(gifts?|presents?)\b/i, "🎁"],
+  [/\b(beach(es)?|resorts?|travel|destinations?|islands?|getaways?)\b/i, "🌴"],
+  [/\b(condos?|condominiums?|towers?|city|cities|BGC)\b/i, "🏙️"],
+  [/\b(homes?|houses?|propert(y|ies)|real estate|lots?|villages?|subdivisions?)\b/i, "🏡"],
+]
+
+function topicEmoji(text: string) {
+  return TOPIC_EMOJIS.find(([pattern]) => pattern.test(text))?.[1] ?? "✨"
+}
+
 /**
- * A first draft in the Homes.ph caption style, built only from the slide text:
- * "Discover <cover description>! From <card 1> and <card 2> to <card 3>, …, and <card N>, …"
+ * A first draft in the Homes.ph Facebook caption style, built only from the slide text.
+ * Facebook shows the images as a photo grid (no slides), so it never says "swipe":
+ *
+ *   Discover <cover description>! 🏙️✨
+ *
+ *   From <card 1> and <card 2> to <card 3>, …, see what makes each of these <noun> special in the photos below. 👇
+ *
+ *   Which one is your favorite? 💬
  */
 export function draftCaption(slides: { design: SlideDesign }[]): string {
   if (!slides.length) return ""
@@ -78,18 +99,21 @@ export function draftCaption(slides: { design: SlideDesign }[]): string {
     .slice(1)
     .map((s) => textOf(s.design, "title", "headline", "stat"))
     .filter(Boolean)
-    .map(toSentencePhrase)
+    // Card titles are usually names (condos, places, products): keep them as written.
+    .map((title) => title.replace(/\s+/g, " ").trim().replace(/[.!?:;,]+$/, ""))
 
-  const sentences: string[] = []
-  if (subject) sentences.push(`Discover ${toSentencePhrase(subject)}!`)
+  const emoji = topicEmoji(`${headline} ${description}`)
+  const paragraphs: string[] = []
+  if (subject) paragraphs.push(`Discover ${toSentencePhrase(subject)}! ${emoji === "✨" ? "✨" : `${emoji}✨`}`)
   if (cards.length >= 2) {
     const noun = description ? subjectNoun(description) : null
-    const ending = noun ? `swipe through to see what makes each of these ${noun} special.` : "swipe through to learn more about each one."
+    const ending = noun ? `see what makes each of these ${noun} special in the photos below. 👇` : "get to know each one in the photos below. 👇"
     const [first, second, ...rest] = cards
     const from = rest.length ? `From ${first} and ${second} to ${list(rest)}` : `From ${first} to ${second}`
-    sentences.push(`${from}, ${ending}`)
+    paragraphs.push(`${from}, ${ending}`)
+    paragraphs.push("Which one is your favorite? 💬")
   } else if (cards.length === 1) {
-    sentences.push(`Swipe through to learn more about ${cards[0]}.`)
+    paragraphs.push(`Learn more about ${cards[0]} in the photos below. 👇`)
   }
-  return sentences.join(" ")
+  return paragraphs.join("\n\n")
 }

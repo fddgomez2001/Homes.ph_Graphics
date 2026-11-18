@@ -7,6 +7,8 @@ import Link from "next/link"
 import { ChevronLeft, ChevronRight, ClipboardList, Database, Loader2, Newspaper, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/app-shell/page-header"
+import { NoPagesAssigned, PageTabs, pickPage } from "@/components/pages/page-tabs"
+import { useProjectSlides } from "@/components/board/slide-renders"
 import { LivePreview } from "@/components/projects/live-preview"
 import { ProjectActionsMenu } from "@/components/projects/project-actions-menu"
 import { ProjectThumb } from "@/components/projects/project-thumb"
@@ -21,7 +23,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { createNewsArticle } from "@/lib/data/news"
 import { projectFeatures } from "@/lib/data/projects"
 import { combineDateTime, toDateInput } from "@/lib/dates"
-import { NEWS_BRANDS, newsTemplatesFor, newsTimesFor, type NewsBrand } from "@/lib/design/news-templates"
+import { useAssignment } from "@/lib/assignment"
+import { articleTemplatesFor, defaultArticleTemplate, isPosterTemplate } from "@/lib/design/news-templates"
+import { newsLane, type NewsLane } from "@/lib/news-lanes"
+import { assignedPageIds, type PageId } from "@/lib/pages"
 import { useDebouncedValue } from "@/lib/hooks"
 import type { ProjectChange } from "@/components/projects/use-project-actions"
 import { cn, errorMessage } from "@/lib/utils"
@@ -30,15 +35,20 @@ import { NewsBoard } from "./news-board"
 type View = "daily" | "all"
 
 /**
- * News Article: single news graphics for PicklePlay PH (1408 × 1408) and FHI
- * Global Property (1152 × 1408 or 1742 × 1436), each exported at its full size.
- * "Daily posts" is the day's five posting times per brand; "All articles" lists
- * everything.
+ * News Article: single news graphics for the assigned pages (PicklePlay PH, FHI Global Property, the Homes.ph
+ * pages…), each exported at its full size. A navigation bar picks the page (one Homes.ph tab, a dropdown when
+ * several Homes.ph pages are assigned); "Daily posts" is its day's five posting times; "All articles" lists everything.
  */
 export function NewsBrowser() {
   const router = useRouter()
   const params = useSearchParams()
   const view: View = params.get("view") === "all" ? "all" : "daily"
+  const { assignment } = useAssignment()
+  const pages = useMemo(() => assignedPageIds(assignment), [assignment])
+  const page = pickPage(pages, params.get("page"))
+  const lane = page ? newsLane(page) : null
+  // The pages with News Article templates (for New news article).
+  const lanes = useMemo(() => pages.map(newsLane).filter((l) => !!l.brand), [pages])
   const dayParam = params.get("day")
   const parsed = dayParam ? parse(dayParam, "yyyy-MM-dd", new Date()) : null
   const day = parsed && isValid(parsed) ? startOfDay(parsed) : startOfDay(new Date())
@@ -60,11 +70,13 @@ export function NewsBrowser() {
     }
   }, [])
 
-  const go = (next: { view?: View; day?: Date }) => {
+  const go = (next: { view?: View; day?: Date; page?: PageId }) => {
     const v = next.view ?? view
     const d = next.day ?? day
+    const p = next.page ?? page
     const query = new URLSearchParams()
     if (v === "all") query.set("view", "all")
+    if (p && p !== pages[0]) query.set("page", p)
     if (v === "daily" && !isToday(d)) query.set("day", format(d, "yyyy-MM-dd"))
     router.replace(`/news${query.size ? `?${query}` : ""}`, { scroll: false })
   }
@@ -73,7 +85,7 @@ export function NewsBrowser() {
     <div className="flex min-h-screen flex-col">
       <PageHeader
         title="News Article"
-        description="PicklePlay PH, FHI Global Property and Homes.ph CARAGA news graphics, exported at full size"
+        description="News graphics for your assigned pages, exported at full size"
         {...(view === "all" ? { search, onSearchChange: setSearch, searchPlaceholder: "Search news…" } : {})}
       >
         <Button variant="outline" asChild>
@@ -81,11 +93,12 @@ export function NewsBrowser() {
             <ClipboardList /> Generate report
           </Link>
         </Button>
-        <Button onClick={() => setCreating(true)} disabled={supported === false}>
+        <Button onClick={() => setCreating(true)} disabled={supported === false || !lanes.length}>
           <Plus /> New news article
         </Button>
       </PageHeader>
       <div className="flex-1 px-4 py-6 lg:px-8">
+        {view === "daily" && page && <PageTabs pages={pages} value={page} onChange={(p) => go({ page: p })} label="Assigned pages" className="mb-5" />}
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <div role="tablist" aria-label="Show" className="inline-flex rounded-lg border bg-card p-1 shadow-xs">
             {(
@@ -140,14 +153,20 @@ export function NewsBrowser() {
             </div>
           </div>
         ) : view === "daily" ? (
-          <NewsBoard day={day} actions={actions} />
+          lane ? (
+            <NewsBoard day={day} lane={lane} actions={actions} />
+          ) : (
+            <NoPagesAssigned what="News Article" />
+          )
         ) : (
           <NewsList search={search} actions={actions} onCreate={() => setCreating(true)} />
         )}
       </div>
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto p-0 sm:max-w-[min(68rem,calc(100vw-2rem))]">
-          {creating && <CreateNewsForm initialDay={view === "daily" ? day : startOfDay(new Date())} onDone={() => setCreating(false)} />}
+          {creating && lanes.length > 0 && (
+            <CreateNewsForm lanes={lanes} initialLane={lanes.find((l) => l.id === page) ?? lanes[0]} initialDay={view === "daily" ? day : startOfDay(new Date())} onDone={() => setCreating(false)} />
+          )}
         </DialogContent>
       </Dialog>
       {dialogs}
@@ -158,7 +177,10 @@ export function NewsBrowser() {
 function NewsList({ search, actions, onCreate }: { search: string; actions: ProjectActions; onCreate: () => void }) {
   const router = useRouter()
   const term = useDebouncedValue(search.trim())
-  const { projects, loading, error } = useProjects({ kind: "news", search: term || undefined, orderBy: "scheduled_at", ascending: false })
+  const { projects: all, loading, error } = useProjects({ kind: "news", search: term || undefined, orderBy: "scheduled_at", ascending: false })
+  // Posters belong to the Poster Maker, not to News Article.
+  const slides = useProjectSlides(all)
+  const projects = useMemo(() => all.filter((p) => !isPosterTemplate(slides.get(p.id)?.[0]?.design.templateId)), [all, slides])
   if (error) return <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
   if (loading)
     return (
@@ -206,25 +228,28 @@ function NewsList({ search, actions, onCreate }: { search: string; actions: Proj
   )
 }
 
-function CreateNewsForm({ initialDay, onDone }: { initialDay: Date; onDone: () => void }) {
+function CreateNewsForm({ lanes, initialLane, initialDay, onDone }: { lanes: NewsLane[]; initialLane: NewsLane; initialDay: Date; onDone: () => void }) {
   const router = useRouter()
-  const [brand, setBrand] = useState<NewsBrand>("pickleplay")
-  const templates = newsTemplatesFor(brand)
-  const [templateId, setTemplateId] = useState(templates[0].id)
+  const [lane, setLane] = useState<NewsLane>(initialLane)
+  const brand = lane.brand ?? "pickleplay"
+  const templates = articleTemplatesFor(brand)
+  const [templateId, setTemplateId] = useState(() => defaultArticleTemplate(brand, initialDay).id)
+  /** The template follows the day (FHI alternates Portrait / Wide) until one is picked here. */
+  const [templatePicked, setTemplatePicked] = useState(false)
   const template = templates.find((t) => t.id === templateId) ?? templates[0]
   const [headline, setHeadline] = useState("")
   const [caption, setCaption] = useState("")
   const [day, setDay] = useState<Date>(initialDay)
-  const times = newsTimesFor(brand)
+  const times = lane.times
   const [chosenTime, setTime] = useState<string>(times[0].time)
-  // Each brand posts at its own times (Homes.ph CARAGA: 11 AM, 1:30 PM…).
+  // Each brand posts at its own times (Homes.ph CARAGA and Gensan: 11 AM, 1:30 PM…).
   const time = times.some((t) => t.time === chosenTime) ? chosenTime : times[0].time
   const [busy, setBusy] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const typed = !!headline.trim()
   const design = useMemo(() => {
     if (!typed) return null
-    const choices = newsTemplatesFor(brand)
+    const choices = articleTemplatesFor(brand)
     return (choices.find((t) => t.id === templateId) ?? choices[0]).build({ headline: headline.trim() })
   }, [typed, headline, templateId, brand])
 
@@ -233,7 +258,7 @@ function CreateNewsForm({ initialDay, onDone }: { initialDay: Date; onDone: () =
     if (!typed) return
     setBusy(true)
     try {
-      const id = await createNewsArticle({ templateId: template.id, headline, caption, scheduledAt: combineDateTime(toDateInput(day), time) })
+      const id = await createNewsArticle({ templateId: template.id, headline, caption, scheduledAt: combineDateTime(toDateInput(day), time), page: lane.page })
       onDone()
       router.push(`/editor/${id}`)
     } catch (e) {
@@ -261,27 +286,28 @@ function CreateNewsForm({ initialDay, onDone }: { initialDay: Date; onDone: () =
       <DialogHeader className="border-b px-6 pt-6 pb-4">
         <DialogTitle className="text-xl font-semibold tracking-tight">New news article</DialogTitle>
         <DialogDescription>
-          {NEWS_BRANDS.find((b) => b.id === brand)?.name} · {template.size} px. Add the photo in the editor (paste, drop or upload).
+          {lane.name} · {template.size} px. Add the photo in the editor (paste, drop or upload).
         </DialogDescription>
       </DialogHeader>
       <div className={cn("grid gap-6 px-6 py-5", typed ? "md:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]" : "")}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label>Brand</Label>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Brand">
-              {NEWS_BRANDS.map((b) => (
+            <Label>Page</Label>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Page">
+              {lanes.map((l) => (
                 <button
-                  key={b.id}
+                  key={l.id}
                   type="button"
                   role="radio"
-                  aria-checked={brand === b.id}
+                  aria-checked={lane.id === l.id}
                   onClick={() => {
-                    setBrand(b.id)
-                    setTemplateId(newsTemplatesFor(b.id)[0].id)
+                    setLane(l)
+                    setTemplateId(defaultArticleTemplate(l.brand ?? "pickleplay", day).id)
+                    setTemplatePicked(false)
                   }}
-                  className={chip(brand === b.id)}
+                  className={chip(lane.id === l.id)}
                 >
-                  {b.name}
+                  {l.name}
                 </button>
               ))}
             </div>
@@ -291,7 +317,17 @@ function CreateNewsForm({ initialDay, onDone }: { initialDay: Date; onDone: () =
               <Label>Template</Label>
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Template">
                 {templates.map((t) => (
-                  <button key={t.id} type="button" role="radio" aria-checked={t.id === template.id} onClick={() => setTemplateId(t.id)} className={chip(t.id === template.id)}>
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={t.id === template.id}
+                    onClick={() => {
+                      setTemplateId(t.id)
+                      setTemplatePicked(true)
+                    }}
+                    className={chip(t.id === template.id)}
+                  >
                     {t.name} <span className="opacity-70">· {t.size}</span>
                   </button>
                 ))}
@@ -319,7 +355,13 @@ function CreateNewsForm({ initialDay, onDone }: { initialDay: Date; onDone: () =
             <Label>Posting day and time</Label>
             <div className="flex flex-wrap items-start gap-4">
               <div className="w-fit rounded-lg border p-3">
-                <MiniCalendar value={day} onChange={setDay} />
+                <MiniCalendar
+                  value={day}
+                  onChange={(d) => {
+                    setDay(d)
+                    if (!templatePicked) setTemplateId(defaultArticleTemplate(brand, d).id)
+                  }}
+                />
               </div>
               <div className="flex flex-col gap-2" role="radiogroup" aria-label="Posting time">
                 {times.map((t) => (

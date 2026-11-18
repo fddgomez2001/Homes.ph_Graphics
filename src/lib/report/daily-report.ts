@@ -4,12 +4,14 @@ import { format } from "date-fns"
 import type { ReportCarousel, ReportData, ReportDay, ReportPost } from "@/lib/data/report"
 import { LOGO_BLUE_SRC, PICKLEPLAY_LOGO_SRC } from "@/lib/design/constants"
 import { loadImage } from "@/lib/design/image-cache"
-import { newsTimeLabel, newsTimesFor, type NewsBrand } from "@/lib/design/news-templates"
+import { defaultArticleTemplate, newsTimeLabel, type DailyBrand } from "@/lib/design/news-templates"
+import { isPageLane, laneTimesOf, templateBrandOf, type ReportBrand } from "@/lib/news-lanes"
+import { pageName } from "@/lib/pages"
 import type { SlideDesign } from "@/lib/design/types"
 
 /**
  * The "Daily Tasks" report (Figma "October 28, 2026", 10164 px wide): DONE —
- * the day's PicklePlay, FHI and Homes.ph CARAGA article posts by time, and each
+ * the day's PicklePlay, FHI, Homes.ph CARAGA and Homes.ph Gensan article posts by time, and each
  * carousel with the Homes.ph pages it was posted on, its slides and caption —
  * then PENDING. Laid out in the Figma's units and drawn at any scale.
  */
@@ -27,14 +29,17 @@ export const FHI_EMBLEM_SRC = "/brand/news/fhi-emblem.png"
  * it when another brand's block follows.
  */
 const BRANDS: Record<
-  NewsBrand,
+  DailyBrand,
   { name: string; logo: string; logoBox: { x: number; y: number; width: number; height: number }; frame: number; x0: number; step: number; labelGap: number; gapAfter: number }
 > = {
   pickleplay: { name: "Pickleplay.ph", logo: PICKLEPLAY_LOGO_SRC, logoBox: { x: 512, y: 87, width: 594, height: 594 }, frame: 1408, x0: 512, step: 1932, labelGap: 1208, gapAfter: 520 },
   fhi: { name: "FHI Global Property", logo: FHI_EMBLEM_SRC, logoBox: { x: 512, y: 87, width: 594, height: 594 }, frame: 1152, x0: 529, step: 1997, labelGap: 1058, gapAfter: 478 },
   caraga: { name: "Homes.ph CARAGA", logo: LOGO_BLUE_SRC, logoBox: { x: 518, y: 95, width: 587, height: 577 }, frame: 1408, x0: 504, step: 1930, labelGap: 1299, gapAfter: 478 },
+  // Homes.ph Gensan: laid out like the Homes.ph CARAGA block.
+  gensan: { name: "Homes.ph Gensan", logo: LOGO_BLUE_SRC, logoBox: { x: 518, y: 95, width: 587, height: 577 }, frame: 1408, x0: 504, step: 1930, labelGap: 1299, gapAfter: 478 },
 }
-const BRAND_ORDER: NewsBrand[] = ["pickleplay", "fhi", "caraga"]
+/** A row's block: another Homes.ph page is laid out like the Homes.ph CARAGA block, with its own name. */
+const blockOf = (brand: ReportBrand) => (isPageLane(brand) ? { ...BRANDS.caraga, name: pageName(brand) } : BRANDS[brand])
 const FRAME_HEIGHT = 1408
 /** After the last article block, before the carousel. */
 const GAP_BEFORE_CAROUSEL = 240
@@ -44,11 +49,11 @@ const GAP_BEFORE_CAROUSEL = 240
 // ---------------------------------------------------------------------------
 
 export type PendingItem =
-  | { kind: "articles"; brands: NewsBrand[]; day: Date; times: string[] }
+  | { kind: "articles"; brands: ReportBrand[]; day: Date; times: string[] }
   | { kind: "carousel"; day: Date; time: string; state: "not-made" | "not-posted" | "partial"; pagesLeft: string[]; title?: string }
 
-function missingTimes(day: ReportDay, brand: NewsBrand) {
-  return newsTimesFor(brand)
+function missingTimes(day: ReportDay, brand: ReportBrand) {
+  return laneTimesOf(brand)
     .filter((t) => !day.posts.some((p) => p.brand === brand && p.time === t.time))
     .map((t) => t.time)
 }
@@ -60,8 +65,8 @@ export function planPending(data: ReportData): PendingItem[] {
   const items: PendingItem[] = []
   for (const day of [data.today, data.tomorrow]) {
     // Brands missing the same times share a line ("Pickleplay.ph & FHI Global Property").
-    const groups: { brands: NewsBrand[]; times: string[] }[] = []
-    for (const brand of BRAND_ORDER) {
+    const groups: { brands: ReportBrand[]; times: string[] }[] = []
+    for (const brand of data.brands) {
       const times = missingTimes(day, brand)
       if (!times.length) continue
       const same = groups.find((g) => g.times.join() === times.join())
@@ -69,6 +74,8 @@ export function planPending(data: ReportData): PendingItem[] {
       else groups.push({ brands: [brand], times })
     }
     for (const g of groups) items.push({ kind: "articles", brands: g.brands, day: day.day, times: g.times })
+    // The carousel only for the people who make it (Settings → Assigned pages).
+    if (!data.carousel) continue
     if (day.carousels.length === 0) items.push({ kind: "carousel", day: day.day, time: "23:00", state: "not-made", pagesLeft: [] })
     else if (day === data.today) {
       for (const c of day.carousels) {
@@ -183,12 +190,13 @@ export async function renderDailyReport(
   await Promise.all([300, 400, 500, 600, 700, 900].map((w) => document.fonts.load(`${w} 100px Outfit`).catch(() => [])))
   const measure = document.createElement("canvas").getContext("2d")!
   const [ppLogo, fhiLogo, homesLogo] = await Promise.all([staticImage(BRANDS.pickleplay.logo), staticImage(BRANDS.fhi.logo), staticImage(LOGO_BLUE_SRC)])
-  const logos: Record<NewsBrand, CanvasImageSource | null> = { pickleplay: ppLogo, fhi: fhiLogo, caraga: homesLogo }
+  const logos: Record<DailyBrand, CanvasImageSource | null> = { pickleplay: ppLogo, fhi: fhiLogo, caraga: homesLogo, gensan: homesLogo }
+  const logoOf = (brand: ReportBrand) => (isPageLane(brand) ? homesLogo : logos[brand])
 
   const { today } = data
   const s = options.scale
-  const posts = BRAND_ORDER.map((brand) => ({ brand, posts: today.posts.filter((p) => p.brand === brand) })).filter((b) => b.posts.length)
-  const carousels = doneCarousels(today)
+  const posts = data.brands.map((brand) => ({ brand, posts: today.posts.filter((p) => p.brand === brand) })).filter((b) => b.posts.length)
+  const carousels = data.carousel ? doneCarousels(today) : []
   const pending = planPending(data)
 
   // Every post and slide is rendered once, at the size it's drawn.
@@ -225,8 +233,8 @@ export async function renderDailyReport(
 
   // Article posting, one block per brand
   posts.forEach(({ brand, posts: brandPosts }, blockIndex) => {
-    const b = BRANDS[brand]
-    const logo = logos[brand]
+    const b = blockOf(brand)
+    const logo = logoOf(brand)
     if (logo) {
       // Fitted into the Figma's logo box (the FHI emblem is narrower than it is tall).
       const ratio = (logo as HTMLImageElement).naturalWidth / (logo as HTMLImageElement).naturalHeight || 1
@@ -245,11 +253,13 @@ export async function renderDailyReport(
     text([{ text: format(today.day, "MMMM d, yyyy"), weight: 400, size: 200, spacing: 0.21 }], 1241, y + 516)
     const labelY = y + b.labelGap
     const framesTop = labelY + 238
-    // Posts at their own size (an FHI wide post is 1742 × 1436), the row justified
-    // between the Figma's first and last frame edges like its mixed rows.
-    const slots = newsTimesFor(brand).map((slot) => {
+    // Posts at their own size (an FHI wide post is 1742 × 1436, a New Template post 1126 × 1408),
+    // the row justified between the Figma's first and last frame edges like its mixed rows.
+    // An empty slot is the size of the brand's default template.
+    const empty = defaultArticleTemplate(templateBrandOf(brand), today.day)
+    const slots = laneTimesOf(brand).map((slot) => {
       const post: ReportPost | undefined = brandPosts.find((p) => p.time === slot.time)
-      return { slot, post, width: post ? post.design.width : b.frame, height: post ? post.design.height : FRAME_HEIGHT }
+      return { slot, post, width: post ? post.design.width : (empty?.width ?? b.frame), height: post ? post.design.height : (empty?.height ?? FRAME_HEIGHT) }
     })
     const left = b.x0
     const right = b.x0 + (slots.length - 1) * b.step + b.frame
@@ -364,8 +374,8 @@ export async function renderDailyReport(
     itemTop += 900
   }
   for (const item of pending) {
-    // "Pickleplay.ph & FHI Global Property Article Posting", "Homes.ph CARAGA Article Posting"
-    const title = item.kind === "carousel" ? null : item.brands.map((brand) => BRANDS[brand].name).join(" & ")
+    // "Pickleplay.ph & FHI Global Property Article Posting", "Homes.ph CARAGA & Homes.ph Gensan Article Posting"
+    const title = item.kind === "carousel" ? null : item.brands.map((brand) => blockOf(brand).name).join(" & ")
     text(
       title
         ? [

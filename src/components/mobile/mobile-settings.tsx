@@ -98,7 +98,7 @@ export function MobileSettings() {
         <p>
           Homes.ph Carousels {process.env.APP_VERSION ? `v${process.env.APP_VERSION}` : ""}
           <br />
-          Carousels and news posts are created in the Daily Carousel Maker on the computer.
+          Carousels and news posts are created in the Homes.ph SocMedSystem on the computer.
         </p>
       </footer>
     </div>

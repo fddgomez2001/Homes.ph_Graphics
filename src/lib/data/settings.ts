@@ -2,6 +2,8 @@
 
 import { DEFAULT_TEMPLATE_CONTEXT, type TemplateContext } from "@/lib/design/templates"
 import { readCache, writeCache } from "@/lib/cache"
+import { localApi } from "@/lib/local/client"
+import { isLocalMode } from "@/lib/local/shared"
 import { getSupabase } from "@/lib/supabase/client"
 import type { UserSettings } from "@/lib/types"
 import { toDataError } from "./errors"
@@ -10,6 +12,11 @@ const SETTINGS_KEY = "settings"
 let cached: Promise<UserSettings> | null = null
 
 async function fetchSettings(): Promise<UserSettings> {
+  if (isLocalMode()) {
+    const settings = (await localApi<UserSettings | null>("GET", "settings")) ?? {}
+    void writeCache(SETTINGS_KEY, settings)
+    return settings
+  }
   const { data, error } = await getSupabase().from("carousel_settings").select("settings").maybeSingle()
   if (error) throw toDataError(error)
   const settings = ((data?.settings as UserSettings | undefined) ?? {}) as UserSettings
@@ -39,6 +46,12 @@ export function getSettings(refresh = false): Promise<UserSettings> {
 }
 
 export async function saveSettings(settings: UserSettings): Promise<UserSettings> {
+  if (isLocalMode()) {
+    const saved = (await localApi<UserSettings | null>("PUT", "settings", { settings })) ?? {}
+    cached = Promise.resolve(saved)
+    void writeCache(SETTINGS_KEY, saved)
+    return saved
+  }
   const supabase = getSupabase()
   const { data: auth } = await supabase.auth.getUser()
   if (!auth.user) throw new Error("Please sign in again.")

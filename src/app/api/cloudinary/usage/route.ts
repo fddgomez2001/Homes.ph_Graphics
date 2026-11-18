@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { cachedStatus, CloudinaryError, getCloudinaryConfig, getUsage, missingCloudinaryVars, rememberStatus } from "@/lib/cloudinary/server"
 import type { AppStorage, CloudinaryStatus } from "@/lib/cloudinary/types"
+import { isLocalMode } from "@/lib/local/setup"
+import { listAssets } from "@/lib/local/store"
 import { getRequestUser } from "@/lib/supabase/server"
 
 type WithoutApp<T> = T extends unknown ? Omit<T, "app"> : never
@@ -21,8 +23,14 @@ export async function GET(request: Request) {
 
   // What this app stored, from its own records (works whatever the key may read).
   let app: AppStorage | null = null
-  const assets = await supabase.from("carousel_assets").select("bytes")
-  if (!assets.error) app = { images: assets.data.length, bytes: assets.data.reduce((n, a) => n + (Number(a.bytes) || 0), 0) }
+  if (isLocalMode()) {
+    // No account: the photo library is a file in the work folder.
+    const assets = listAssets().filter((a) => !a.cloudinary_public_id.startsWith("local/"))
+    app = { images: assets.length, bytes: assets.reduce((n, a) => n + (Number(a.bytes) || 0), 0) }
+  } else {
+    const assets = await supabase.from("carousel_assets").select("bytes")
+    if (!assets.error) app = { images: assets.data.length, bytes: assets.data.reduce((n, a) => n + (Number(a.bytes) || 0), 0) }
+  }
 
   const key = `${config.cloudName}:${config.apiKey}`
   const refresh = new URL(request.url).searchParams.has("refresh")

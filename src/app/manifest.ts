@@ -16,7 +16,7 @@ export default function manifest(): MetadataRoute.Manifest {
     }
   }
   return {
-    name: "Daily Carousel Maker · Homes.ph",
+    name: "Homes.ph SocMedSystem",
     short_name: "Carousel Maker",
     description: "Plan, design and export Homes.ph social media carousels.",
     start_url: "/home",

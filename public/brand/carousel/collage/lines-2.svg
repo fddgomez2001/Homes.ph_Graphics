@@ -1,0 +1,46 @@
+<svg width="1254" height="1254" viewBox="0 0 1254 1254" fill="none" xmlns="http://www.w3.org/2000/svg">
+<mask id="mask6_23397_185" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254">
+<path d="M1254 0H0V1254H1254V0Z" fill="url(#paint0_radial_23397_185)"/>
+</mask>
+<g mask="url(#mask6_23397_185)">
+<g opacity="0.55" filter="url(#filter0_f_23397_185)">
+<path d="M640 600C581.9 440.3 817.7 68.9 1597.6 -203.5" stroke-width="44" stroke-linecap="round" stroke="#FF8A1F"/>
+<path d="M640 599.999C749.3 469.799 1188.8 488.399 1814.6 1027.5" stroke-width="44" stroke-linecap="round" stroke="#FF8A1F"/>
+<path d="M640 600C807.4 629.5 1011.1 1019.4 857.1 1831" stroke-width="44" stroke-linecap="round" stroke="#FF8A1F"/>
+<path d="M640 600C698.1 759.7 462.3 1131.1 -317.6 1403.5" stroke-width="44" stroke-linecap="round" stroke="#FF8A1F"/>
+<path d="M640 600C530.7 730.2 91.2004 711.6 -534.6 172.5" stroke-width="44" stroke-linecap="round" stroke="#FF8A1F"/>
+<path d="M640 600C472.6 570.5 268.9 180.6 422.9 -631" stroke-width="44" stroke-linecap="round" stroke="#FF8A1F"/>
+</g>
+<g opacity="0.9" filter="url(#filter1_f_23397_185)">
+<path d="M640 600C581.9 440.3 817.7 68.9 1597.6 -203.5" stroke-width="12" stroke-linecap="round" stroke="#FFE08A"/>
+<path d="M640 599.999C749.3 469.799 1188.8 488.399 1814.6 1027.5" stroke-width="12" stroke-linecap="round" stroke="#FFE08A"/>
+<path d="M640 600C807.4 629.5 1011.1 1019.4 857.1 1831" stroke-width="12" stroke-linecap="round" stroke="#FFE08A"/>
+<path d="M640 600C698.1 759.7 462.3 1131.1 -317.6 1403.5" stroke-width="12" stroke-linecap="round" stroke="#FFE08A"/>
+<path d="M640 600C530.7 730.2 91.2004 711.6 -534.6 172.5" stroke-width="12" stroke-linecap="round" stroke="#FFE08A"/>
+<path d="M640 600C472.6 570.5 268.9 180.6 422.9 -631" stroke-width="12" stroke-linecap="round" stroke="#FFE08A"/>
+</g>
+<path d="M640 600C581.9 440.3 817.7 68.9 1597.6 -203.5" stroke-width="3.5" stroke-linecap="round" stroke="white"/>
+<path d="M640 599.999C749.3 469.799 1188.8 488.399 1814.6 1027.5" stroke-width="3.5" stroke-linecap="round" stroke="white"/>
+<path d="M640 600C807.4 629.5 1011.1 1019.4 857.1 1831" stroke-width="3.5" stroke-linecap="round" stroke="white"/>
+<path d="M640 600C698.1 759.7 462.3 1131.1 -317.6 1403.5" stroke-width="3.5" stroke-linecap="round" stroke="white"/>
+<path d="M640 600C530.7 730.2 91.2004 711.6 -534.6 172.5" stroke-width="3.5" stroke-linecap="round" stroke="white"/>
+<path d="M640 600C472.6 570.5 268.9 180.6 422.9 -631" stroke-width="3.5" stroke-linecap="round" stroke="white"/>
+</g>
+<defs>
+<filter id="filter0_f_23397_185" x="-584.6" y="-681.004" width="2449.2" height="2562.01" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="14" result="effect1_foregroundBlur_23397_185"/>
+</filter>
+<filter id="filter1_f_23397_185" x="-548.6" y="-645" width="2377.2" height="2490" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="4" result="effect1_foregroundBlur_23397_185"/>
+</filter>
+<radialGradient id="paint0_radial_23397_185" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(640 600) scale(900)">
+<stop stop-color="white"/>
+<stop offset="0.6" stop-color="white" stop-opacity="0.75"/>
+<stop offset="1" stop-color="white" stop-opacity="0.35"/>
+</radialGradient>
+</defs>
+</svg>

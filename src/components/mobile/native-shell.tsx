@@ -5,8 +5,11 @@ import { useTheme } from "@/components/theme/theme"
 import { invalidateProjects } from "@/components/projects/use-projects"
 import { isNativeApp } from "@/lib/native"
 
-/** Android's Back: close an open dialog, then the carousel, then go to the first tab, then leave the app. */
-function onBack(canGoBack: boolean, minimize: () => void) {
+/** Android's Back: a Publisher page first (its history, then back to the panel), then close an open dialog, then the carousel, then go to the first tab, then leave the app. */
+async function onBack(canGoBack: boolean, minimize: () => void) {
+  // One of the Publisher's pages is shown over the app: Back belongs to it.
+  const { publisherBack } = await import("@/lib/publisher/host")
+  if (await publisherBack()) return
   const dialog = document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [data-radix-popper-content-wrapper]')
   if (dialog) {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))
@@ -53,7 +56,7 @@ export function useNativeShell(ready: boolean) {
     let cleanup = () => {}
     let cancelled = false
     void import("@capacitor/app").then(async ({ App }) => {
-      const back = await App.addListener("backButton", ({ canGoBack }) => onBack(canGoBack, () => void App.minimizeApp()))
+      const back = await App.addListener("backButton", ({ canGoBack }) => void onBack(canGoBack, () => void App.minimizeApp()))
       // Back from the background: show what changed meanwhile (cached lists refresh in place).
       const resume = await App.addListener("resume", () => invalidateProjects())
       cleanup = () => {

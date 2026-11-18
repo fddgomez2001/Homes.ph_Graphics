@@ -26,6 +26,7 @@ describe("AI: carousel outline", () => {
       subtitle: "6 Traditional Filipino Instruments",
       cards: [{ title: "Kulintang", subtitle: "A Melody Of Many Gongs", description: "A row of\\n tuned gongs." }],
       caption: "Old caption",
+      brand: "homes",
     })
   })
 })
@@ -49,7 +50,7 @@ describe("AI: only the three writing tasks are accepted", () => {
   it("trims oversized input", () => {
     const big = { title: "x".repeat(5000), subtitle: "", cards: Array.from({ length: 80 }, () => ({ title: "c", subtitle: "", description: "d".repeat(9000) })) }
     const req = parseAiRequest({ task: "caption", carousel: big })
-    if (typeof req === "string") throw new Error(req)
+    if (typeof req === "string" || req.task !== "caption") throw new Error(String(req))
     expect(req.carousel.title.length).toBe(300)
     expect(req.carousel.cards.length).toBe(30)
     expect(req.carousel.cards[0].description.length).toBe(1500)
@@ -60,6 +61,24 @@ describe("AI: answers are cleaned up", () => {
   it("removes labels, quotes, em dashes and hashtags", () => {
     expect(cleanAnswer('Subtitle: "6 Traditional Filipino Instruments."', "cover-subtitle")).toBe("6 Traditional Filipino Instruments")
     expect(cleanAnswer("Here is the description: A row of gongs — tuned by hand. #OPM", "card-description")).toBe("A row of gongs, tuned by hand.")
-    expect(cleanAnswer("“Swipe to meet six instruments.”", "caption")).toBe("Swipe to meet six instruments.")
+    // Facebook shows the photos as a grid: a "swipe" sentence is dropped, the paragraphs and emojis stay.
+    expect(cleanAnswer("“Discover 6 instruments! 🎶\n\nFrom kulintang to gabbang, each has a story. Swipe to meet them.\n\n\nWhich one have you heard? 💬”", "caption")).toBe(
+      "Discover 6 instruments! 🎶\n\nFrom kulintang to gabbang, each has a story.\n\nWhich one have you heard? 💬",
+    )
+    // Text that goes on the slides never gets emojis; ™ stays.
+    expect(cleanAnswer("Studio units from ₱6.2 M 🏙️✨ with a one‑bedroom option. Homes.ph™", "card-description")).toBe("Studio units from ₱6.2M with a one-bedroom option. Homes.ph™")
+    expect(cleanAnswer("“Gravelton Clark 2026.”", "headline-highlight")).toBe("Gravelton Clark 2026")
+  })
+})
+
+describe("AI: poster headline highlight", () => {
+  it("accepts a headline only", () => {
+    expect(parseAiRequest({ task: "headline-highlight", headline: "  More than 600 cyclists\n take on Pampanga  " })).toEqual({
+      task: "headline-highlight",
+      headline: "More than 600 cyclists take on Pampanga",
+    })
+    expect(typeof parseAiRequest({ task: "headline-highlight", headline: "   " })).toBe("string")
+    const long = parseAiRequest({ task: "headline-highlight", headline: "x".repeat(2000) })
+    expect(typeof long !== "string" && long.task === "headline-highlight" && long.headline.length).toBe(400)
   })
 })

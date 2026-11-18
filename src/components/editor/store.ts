@@ -4,7 +4,9 @@ import { createContext, useContext } from "react"
 import { toast } from "sonner"
 import { useStore } from "zustand"
 import { createStore, type StoreApi } from "zustand/vanilla"
+import { applyBoxFit, applyHug, type MeasureWidest } from "@/lib/design/box-fit"
 import { applyTextStack, type MeasureText } from "@/lib/design/layout"
+import { syncCollagePhotos } from "@/lib/design/cover-collage"
 import { coverTitle } from "@/lib/design/cover-title"
 import { applyTitleFit, type MeasureLine } from "@/lib/design/title-fit"
 import { cloneDesignWithNewIds, type TemplateContext } from "@/lib/design/templates"
@@ -99,6 +101,8 @@ export interface EditorActions {
 
   updateElement: (id: string, patch: Partial<DesignElement>, opts?: EditOptions) => void
   updateDesign: (slideId: string, fn: (design: SlideDesign) => SlideDesign, opts?: EditOptions) => void
+  /** Changes every slide at once, as one undo step (unchanged slides keep their design object). */
+  updateAllDesigns: (fn: (design: SlideDesign, index: number) => SlideDesign) => void
   addElement: (el: DesignElement, opts?: { slideId?: string; index?: number; select?: boolean }) => void
   removeElement: (id: string) => void
   duplicateElement: (id: string) => void
@@ -143,6 +147,8 @@ export function createEditorStore(init: {
   measure: MeasureText
   /** Single-line width measurement for auto-fit titles (browser only). */
   measureLine?: MeasureLine
+  /** Widest wrapped line, for text whose box hugs its words (the banner subtext; browser only). */
+  measureWidest?: MeasureWidest
   /** Restored local changes start out unsaved. */
   dirty?: boolean
   /** Slide to show first (e.g. clicked on the Day Board). */
@@ -150,14 +156,18 @@ export function createEditorStore(init: {
 }): EditorStore {
   const layoutDesign = (design: SlideDesign) => {
     let next = init.measureLine ? applyTitleFit(design, init.measureLine) : design
+    next = applyBoxFit(next, init.measure)
+    if (init.measureWidest) next = applyHug(next, init.measureWidest)
     if (next.stack?.enabled) next = applyTextStack(next, init.measure)
     return next
   }
 
-  const initialSlides = init.slides.map((sl) => {
-    const design = layoutDesign(sl.design)
-    return design === sl.design ? sl : { ...sl, design }
-  })
+  const initialSlides = syncCollagePhotos(
+    init.slides.map((sl) => {
+      const design = layoutDesign(sl.design)
+      return design === sl.design ? sl : { ...sl, design }
+    }),
+  )
   const initialTitle = coverTitle(initialSlides[0].design)
   const retitle = !!initialTitle && initialTitle !== init.project.title
 
@@ -176,7 +186,7 @@ export function createEditorStore(init: {
       }
     }
 
-    /** Title auto-fit, then the text stack (auto layout), for slides whose design changed. */
+    /** Title auto-fit, box fit, then the text stack (auto layout), for slides whose design changed. */
     const withLayout = (next: EditorSlide[], prev: EditorSlide[]) => {
       const prevById = new Map(prev.map((s) => [s.id, s]))
       return next.map((slide) => {
@@ -204,7 +214,8 @@ export function createEditorStore(init: {
         patch.historyKey = key
         patch.historyAt = now
       }
-      const slides = withLayout(nextSlides, s.slides)
+      // A cover photo collage follows the cards' photos (added, replaced, removed, reordered).
+      const slides = syncCollagePhotos(withLayout(nextSlides, s.slides))
       set({
         ...patch,
         ...titleSync(slides, s.changeVersion + 1),
@@ -375,6 +386,15 @@ export function createEditorStore(init: {
         commit(mapDesign(slideId, fn), { history: opts.history ?? null })
       },
 
+      updateAllDesigns: (fn) => {
+        const slides = get().slides
+        const next = slides.map((sl, i) => {
+          const design = fn(sl.design, i)
+          return design === sl.design ? sl : { ...sl, design }
+        })
+        if (next.some((sl, i) => sl !== slides[i])) commit(next, { history: null, selectedId: null })
+      },
+
       addElement: (el, opts = {}) => {
         const slideId = opts.slideId ?? get().currentSlideId
         commit(
@@ -393,7 +413,8 @@ export function createEditorStore(init: {
 
       removeElement: (id) => {
         const found = findElement(id)
-        if (!found) return
+        // A brand post's template layers and its own texts / photos stay (1.53).
+        if (!found || found.el.carrier || (found.el.type === "image" && found.el.templatePart)) return
         commit(
           mapDesign(found.slide.id, (d) => ({
             ...d,
@@ -409,7 +430,7 @@ export function createEditorStore(init: {
 
       duplicateElement: (id) => {
         const found = findElement(id)
-        if (!found) return
+        if (!found || found.el.carrier || (found.el.type === "image" && found.el.templatePart)) return
         const copy = {
           ...structuredClone(found.el),
           id: shortId(),

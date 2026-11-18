@@ -8,6 +8,7 @@ import { suggestCaption, suggestCardDescription, suggestCoverSubtitle } from "@/
 import { descriptionStatus } from "@/lib/design/content-rules"
 import { Textarea } from "@/components/ui/textarea"
 import { measureTextHeight } from "@/lib/design/measure"
+import { isContentCard, templateSampleText } from "@/lib/design/templates"
 import type { SlideDesign, TextElement } from "@/lib/design/types"
 import { getFloatBridge, slideTextFields, useFloatAvailable, type FloatBridge, type FloatState } from "@/lib/float"
 import { cn } from "@/lib/utils"
@@ -53,7 +54,7 @@ export function FloatEditor() {
   }, [bridge])
 
   if (!bridge) {
-    return <Centered>The floating editor is part of the Daily Carousel Maker Windows app.</Centered>
+    return <Centered>The floating editor is part of the Homes.ph SocMedSystem Windows app.</Centered>
   }
   if (!state) {
     return (
@@ -113,7 +114,8 @@ export function FloatEditor() {
               key={`${slide.id}:${el.id}`}
               el={el}
               templateId={slide.design.templateId}
-              onChange={(text) => bridge.send({ type: "set-text", slideId: slide.id, elementId: el.id, text })}
+              ack={state.ack ?? 0}
+              onChange={(text, seq) => bridge.send({ type: "set-text", slideId: slide.id, elementId: el.id, text, seq })}
               ai={fieldAi(state, slideIndex, el)}
             />
           ))}
@@ -124,7 +126,8 @@ export function FloatEditor() {
         {isCover && (
           <CaptionField
             caption={state.caption}
-            onChange={(text) => bridge.send({ type: "set-caption", text })}
+            ack={state.ack ?? 0}
+            onChange={(text, seq) => bridge.send({ type: "set-caption", text, seq })}
             aiRequest={() => suggestCaption(state.slides, state.caption)}
           />
         )}
@@ -188,28 +191,45 @@ function Centered({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">{children}</div>
 }
 
+/**
+ * Resolves once `current()` has stayed the same for 150 ms, or after 600 ms of
+ * constant change, so drawing the preview never competes with keystrokes.
+ */
+async function typingPause<T>(current: () => T) {
+  const started = Date.now()
+  for (;;) {
+    const before = current()
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    if (current() === before || Date.now() - started >= 600) return
+  }
+}
+
 /** Live preview, re-rendered (latest wins) whenever the slide changes. Also the paste target for images. */
 function Preview({ design, slideId, bridge }: { design: SlideDesign; slideId: string; bridge: FloatBridge }) {
   const [src, setSrc] = useState<string | null>(null)
   const [pasting, setPasting] = useState(false)
-  const latest = useRef(design)
+  const latest = useRef({ design, slideId })
+  const shownSlide = useRef<string | null>(null)
   const running = useRef(false)
 
   useEffect(() => {
-    latest.current = design
+    latest.current = { design, slideId }
     if (running.current) return
     running.current = true
     ;(async () => {
       const { renderThumbnail } = await import("@/lib/design/render")
       let rendered: SlideDesign | null = null
-      while (rendered !== latest.current) {
-        rendered = latest.current
+      while (rendered !== latest.current.design) {
+        // A new slide shows at once; edits to the same slide wait for a pause in typing.
+        if (latest.current.slideId === shownSlide.current) await typingPause(() => latest.current.design)
+        rendered = latest.current.design
+        shownSlide.current = latest.current.slideId
         const url = await renderThumbnail(rendered, 720, 0.85).catch(() => null)
         if (url) setSrc(url)
       }
       running.current = false
     })()
-  }, [design])
+  }, [design, slideId])
 
   const sendImage = async (blob: Blob, name?: string) => {
     setPasting(true)
@@ -290,19 +310,68 @@ function Preview({ design, slideId, bridge }: { design: SlideDesign; slideId: st
   )
 }
 
+// Numbers every text edit. Starts at the clock so it keeps rising if this window reloads.
+let lastSeq = Date.now()
+const nextSeq = () => ++lastSeq
+
 /**
- * A field that keeps its own text while focused (so incoming updates never
- * move the cursor) and follows the editor otherwise.
+ * A field's text. While focused it keeps its own text (incoming updates never
+ * move the cursor); otherwise it follows the editor, but only once the editor
+ * has applied our last edit (`ack`), so a late echo never flickers old text back.
+ *
+ * With a template sample text ("Card Title", …): clicking the field empties it,
+ * and leaving it empty puts the sample text back. The slide keeps the sample
+ * text while the field is empty, so it is never left blank by accident.
+ * A field that was already empty when clicked is left alone.
  */
-function useSyncedDraft(value: string) {
+function useSyncedDraft(value: string, ack: number, send: (text: string, seq: number) => void, sample?: string) {
   const [draft, setDraft] = useState(value)
   const [focused, setFocused] = useState(false)
-  const [seen, setSeen] = useState(value)
-  if (!focused && value !== seen) {
-    setSeen(value)
-    setDraft(value)
+  // seq of our last edit the editor hasn't confirmed yet (0 = none).
+  const [waitFor, setWaitFor] = useState(0)
+  // Leaving the field empty brings the sample text back.
+  const [restore, setRestore] = useState(false)
+
+  if (!focused && waitFor && ack >= waitFor) setWaitFor(0)
+  if (!focused && !waitFor && draft !== value) setDraft(value)
+
+  // Safety net: if the editor reloaded and never confirms, follow it again.
+  useEffect(() => {
+    if (focused || !waitFor) return
+    const timer = setTimeout(() => setWaitFor(0), 2000)
+    return () => clearTimeout(timer)
+  }, [focused, waitFor])
+
+  const blank = !draft.trim()
+  const restoring = restore && !!sample
+  const push = (text: string) => {
+    const seq = nextSeq()
+    setWaitFor(seq)
+    send(restoring && !text.trim() ? sample! : text, seq)
   }
-  return { draft, setDraft, focus: () => setFocused(true), blur: () => setFocused(false) }
+
+  return {
+    draft,
+    /** The text the slide gets from this field right now. */
+    kept: restoring && blank ? sample! : draft,
+    /** Replace the text (typing or an AI suggestion). */
+    change: (text: string) => {
+      setDraft(text)
+      push(text)
+    },
+    focus: () => {
+      setFocused(true)
+      const hasText = !!draft.trim()
+      setRestore(hasText)
+      if (sample && draft === sample) setDraft("")
+    },
+    blur: () => {
+      setFocused(false)
+      setRestore(false)
+      // The slide already has the sample text (see push), so nothing to send.
+      if (restoring && blank) setDraft(sample!)
+    },
+  }
 }
 
 interface FieldAi {
@@ -314,7 +383,7 @@ interface FieldAi {
 /** AI help for the card description and the cover subtitle (same as in the editor). */
 function fieldAi(state: FloatState, slideIndex: number, el: TextElement): FieldAi | undefined {
   const design = state.slides[slideIndex]?.design
-  if (slideIndex > 0 && el.role === "description" && design?.templateId === "homes-card") {
+  if (slideIndex > 0 && el.role === "description" && isContentCard(design?.templateId)) {
     const { lines } = descriptionStatus(el, measureTextHeight)
     return {
       label: lines > 3 ? "Shorten with AI" : lines < 2 ? "Write it with AI" : "Rewrite with AI",
@@ -328,9 +397,21 @@ function fieldAi(state: FloatState, slideIndex: number, el: TextElement): FieldA
   return undefined
 }
 
-function Field({ el, templateId, onChange, ai }: { el: TextElement; templateId?: string | null; onChange: (text: string) => void; ai?: FieldAi }) {
-  const { draft, setDraft, focus, blur } = useSyncedDraft(el.text)
-  const label = el.role === "description" && templateId !== "homes-card" ? "Subtitle" : (FIELD_LABELS[el.role ?? ""] ?? el.name)
+function Field({
+  el,
+  templateId,
+  ack,
+  onChange,
+  ai,
+}: {
+  el: TextElement
+  templateId?: string | null
+  ack: number
+  onChange: (text: string, seq: number) => void
+  ai?: FieldAi
+}) {
+  const { draft, kept, change, focus, blur } = useSyncedDraft(el.text, ack, onChange, templateSampleText(templateId, el.role))
+  const label = el.role === "description" && !isContentCard(templateId) ? "Subtitle" : (FIELD_LABELS[el.role ?? ""] ?? el.name)
   const id = `float-${el.id}`
   const isDescription = el.role === "description"
   return (
@@ -344,30 +425,27 @@ function Field({ el, templateId, onChange, ai }: { el: TextElement; templateId?:
         rows={isDescription ? 3 : 1}
         onFocus={focus}
         onBlur={blur}
-        onChange={(e) => {
-          setDraft(e.target.value)
-          onChange(e.target.value)
-        }}
+        onChange={(e) => change(e.target.value)}
         className="min-h-0 resize-none bg-card text-sm"
       />
-      {isDescription && templateId === "homes-card" && <DescriptionHint el={{ ...el, text: draft }} measure={measureTextHeight} />}
-      {ai && (
-        <AiSuggestion
-          label={ai.label}
-          emphasis={ai.emphasis}
-          request={ai.request}
-          onUse={(text) => {
-            setDraft(text)
-            onChange(text)
-          }}
-        />
-      )}
+      {isDescription && isContentCard(templateId) && <DescriptionHint el={{ ...el, text: kept }} measure={measureTextHeight} />}
+      {ai && <AiSuggestion label={ai.label} emphasis={ai.emphasis} request={ai.request} onUse={change} />}
     </div>
   )
 }
 
-function CaptionField({ caption, onChange, aiRequest }: { caption: string; onChange: (text: string) => void; aiRequest: () => Promise<string> }) {
-  const { draft, setDraft, focus, blur } = useSyncedDraft(caption)
+function CaptionField({
+  caption,
+  ack,
+  onChange,
+  aiRequest,
+}: {
+  caption: string
+  ack: number
+  onChange: (text: string, seq: number) => void
+  aiRequest: () => Promise<string>
+}) {
+  const { draft, change, focus, blur } = useSyncedDraft(caption, ack, onChange)
   return (
     <div className="flex flex-col gap-1 border-t border-border pt-3">
       <label htmlFor="float-caption" className="flex items-center justify-between text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
@@ -380,10 +458,7 @@ function CaptionField({ caption, onChange, aiRequest }: { caption: string; onCha
         rows={5}
         onFocus={focus}
         onBlur={blur}
-        onChange={(e) => {
-          setDraft(e.target.value)
-          onChange(e.target.value)
-        }}
+        onChange={(e) => change(e.target.value)}
         placeholder="Paste or write the caption…"
         className="min-h-24 bg-card text-sm"
       />
@@ -394,10 +469,7 @@ function CaptionField({ caption, onChange, aiRequest }: { caption: string; onCha
         label={draft.trim() ? "Rewrite caption with AI" : "Write caption with AI"}
         emphasis={!draft.trim()}
         request={aiRequest}
-        onUse={(text) => {
-          setDraft(text)
-          onChange(text)
-        }}
+        onUse={change}
       />
     </div>
   )

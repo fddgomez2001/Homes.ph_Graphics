@@ -16,7 +16,9 @@ import { useCurrentSlide, useEditor, useEditorStore } from "../store"
 import { useImageFilePicker } from "../use-file-picker"
 import { DescriptionHint } from "../description-hint"
 import { SlideTextAi } from "../slide-text-ai"
+import { CoverCollageSection } from "./cover-collage"
 import { FillEditor } from "./shape-properties"
+import { isContentCard } from "@/lib/design/templates"
 
 /** Shown when nothing is selected: settings for the whole slide. */
 export function SlideProperties() {
@@ -45,6 +47,8 @@ export function SlideProperties() {
         </div>
       </div>
 
+      {index === 0 && <CoverCollageSection />}
+
       {stackTexts.length > 0 && (
         <Section title="Slide text">
           {stackTexts.map((el) => (
@@ -62,7 +66,7 @@ export function SlideProperties() {
               {el.role === "subtitle" && (
                 <p className="text-[11px] text-muted-foreground">Leave empty to use the layout without a subtitle.</p>
               )}
-              {el.role === "description" && design.templateId === "homes-card" && <DescriptionHint el={el} measure={measure} />}
+              {el.role === "description" && isContentCard(design.templateId) && <DescriptionHint el={el} measure={measure} />}
               <SlideTextAi el={el} />
               {el.role === "highlight" && !el.text.trim() && (
                 <p className="text-[11px] text-muted-foreground">Empty — the cover shows only the white line.</p>
@@ -91,7 +95,8 @@ export function SlideProperties() {
         </Section>
       )}
 
-      <Section title="Background photo">
+      {/* A collage cover's photos are managed in "Cover photos" above. */}
+      {!design.collage && <Section title="Background photo">
         {picker.input}
         {bg?.src ? (
           <>
@@ -145,7 +150,7 @@ export function SlideProperties() {
             <p className="text-[11px] text-muted-foreground">Or drag a photo onto the canvas, or paste one with Ctrl+V.</p>
           </>
         )}
-      </Section>
+      </Section>}
 
       <Section title="Base color">
         <ColorField

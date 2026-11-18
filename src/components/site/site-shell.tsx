@@ -23,7 +23,7 @@ import { pruneCache } from "@/lib/cache"
  * The posting website: carousels ready to post, no editor. Light and calm — a
  * header with the Homes.ph mark and the account menu, the page underneath.
  */
-export function SiteShell({ children }: { children: ReactNode }) {
+export function SiteShell({ children, subtitle = "Carousels ready to post" }: { children: ReactNode; subtitle?: string }) {
   useEffect(() => {
     const idle = (fn: () => void) => (typeof requestIdleCallback === "function" ? requestIdleCallback(fn, { timeout: 4000 }) : setTimeout(fn, 1500))
     idle(() => {
@@ -41,7 +41,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
               <BrandMark className="size-8" />
               <span className="leading-tight">
                 <span className="block text-[15px] font-semibold tracking-tight">Homes.ph</span>
-                <span className="block text-xs text-muted-foreground">Carousels ready to post</span>
+                <span className="block text-xs text-muted-foreground">{subtitle}</span>
               </span>
             </Link>
             <div className="ml-auto flex items-center gap-1">

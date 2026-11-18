@@ -1,0 +1,34 @@
+Homes.ph Publisher (Chrome extension)
+
+1. In Chrome, open chrome://extensions
+2. Turn on "Developer mode" (top right).
+3. Click "Load unpacked" and choose THIS folder ("Chrome Extension", the one with manifest.json in it).
+   Choose the folder itself: don't open a folder inside it.
+4. Click the extension's Details > Extension options > Connect, then Allow in Homes.ph SocMedSystem.
+5. Stay signed in to dash.homes.ph and homes.ph in Chrome.
+
+After Homes.ph SocMedSystem updates, click the reload arrow on the extension's card in chrome://extensions.
+
+Carousels: the panel also shows the day's carousel from Homes.ph SocMedSystem. Click "Post 1" (then Post 2…):
+up to 4 Facebook Pages, the caption, the slides in order (1.png = cover) and 11:00 PM are filled in for you.
+Check it and click Schedule Post: the Pages are ticked on the app's posting checklist.
+
+Trending tab: the day's Daily Trend News posters from Homes.ph SocMedSystem's Poster Maker, per page. Click a time:
+the poster, its AI caption, its time and its Page are filled in on Facebook Autopost. You click Schedule Post.
+
+Ads tab: the advertisements scheduled in Homes.ph SocMedSystem (Advertisement page), the same way.
+
+Quotes tab: "Schedule a quote" for PicklePlay, FHI, Caraga or Gensan (picture, caption, time: 4:00 PM unless you
+change it), "Done setup", then "Post". The small check box next to a post marks it posted when it went out another way.
+
+Reports tab: click "Start Your Day" (stay signed in to dtr.homes.ph). It only adds today's tasks in My Tasks that
+aren't there yet, To do or Done today (In progress, 9:00 AM - 6:00 PM; Saturday 9:00 AM - 12:00 PM); HR's "Search a
+Trending News Daily" is set In progress. Nothing is reported by itself: once everything a task reports is posted, its
+"Send report" button shows. It posts one update per post, then Done, then goes back to My Tasks, and the pill turns
+green. Before everything is posted (time out, Saturday's half day) the button reads "Send 3 posted": it reports only
+what's posted so far, then Done. With nothing posted it reads "Mark Done" (Done, no update).
+
+Daily report: once every task in Reports is Done, "Send daily report" shows. It downloads Today's report from My Tasks
+(the panel says where it's saved), then in the report chat on Messenger it types the greeting ("Good Evening" Monday to Friday, "Good Afternoon" on Saturday), mentioning each person
+(picked from Messenger's list and checked), sends it, then sends the report picture. Stay signed in to messenger.com.
+Nothing is sent when a mention can't be made: the panel says what to fix.

@@ -10,6 +10,7 @@ import { MadeBy } from "@/components/posting/made-by"
 import { PostingChecklist, PostingChip } from "@/components/posting/posting-checklist"
 import { CarouselPile } from "@/components/projects/carousel-pile"
 import { useCreateCarousel } from "@/components/projects/create-carousel-dialog"
+import { useCarouselBrands } from "@/components/projects/use-carousel-brands"
 import { ProjectActionsMenu } from "@/components/projects/project-actions-menu"
 import { PostedHint } from "@/components/projects/project-card"
 import { StatusBadge } from "@/components/projects/status-badge"
@@ -21,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { ProjectRow } from "@/lib/types"
 import { postingState } from "@/lib/data/posting"
+import { CAROUSEL_BRANDS, isCarouselBrand, isHomesLook, type CarouselBrand } from "@/lib/design/templates"
 import { cn } from "@/lib/utils"
 import { CarouselPreview } from "./carousel-preview"
 
@@ -41,10 +43,10 @@ function defaultMonth(counts: Map<string, number>, current: string) {
 }
 
 /**
- * Home: one month of carousels at a time, in publication order (Oct 31, Nov 1,
- * Nov 2…). Each is a pile of its slides; posted ones are greyed out. Clicking one
- * opens its preview; quick buttons: the posting checklist, download every slide
- * as numbered PNGs, and the ⋯ menu.
+ * Home: one brand's carousels (Homes.ph by default, FHI Global Property or PicklePlay), one month
+ * at a time, in publication order (Oct 31, Nov 1, Nov 2…). Each is a pile of its slides; posted
+ * ones are greyed out. Clicking one opens its preview; quick buttons: the posting checklist,
+ * download every slide as numbered PNGs, and the ⋯ menu.
  */
 export function HomeGallery() {
   const router = useRouter()
@@ -53,9 +55,22 @@ export function HomeGallery() {
   const [search, setSearch] = useState("")
   const [visible, setVisible] = useState(PAGE)
   // One cached list; months and search are filtered here (no extra requests).
-  const { projects, loading, error, apply } = useProjects({ orderBy: "scheduled_at", ascending: true, limit: 500 })
+  const { projects: allProjects, loading: loadingProjects, error, apply } = useProjects({ orderBy: "scheduled_at", ascending: true, limit: 500 })
   const { actions, dialogs } = useProjectActions(apply)
   const [viewing, setViewing] = useState<string | null>(null)
+
+  // Brand tabs: each carousel's brand comes from its cover's template.
+  const requestedBrand = params.get("brand")
+  const brand: CarouselBrand = isCarouselBrand(requestedBrand) ? requestedBrand : "homes"
+  const brands = useCarouselBrands(allProjects)
+  const loading = loadingProjects || !brands.ready
+  const brandCounts = useMemo(() => {
+    const map = new Map<CarouselBrand, number>()
+    for (const p of allProjects) map.set(brands.brandOf(p.id), (map.get(brands.brandOf(p.id)) ?? 0) + 1)
+    return map
+  }, [allProjects, brands])
+  const projects = useMemo(() => allProjects.filter((p) => brands.brandOf(p.id) === brand), [allProjects, brands, brand])
+  const brandName = CAROUSEL_BRANDS.find((b) => b.id === brand)!.name
 
   const counts = useMemo(() => {
     const map = new Map<string, number>()
@@ -84,10 +99,16 @@ export function HomeGallery() {
   const slides = useProjectSlides(shown)
   const renders = useSlideRenders(slides)
 
-  const choose = (next: string) => {
+  const go = (nextMonth: string | null, nextBrand: CarouselBrand) => {
     setVisible(PAGE)
-    router.replace(next === current ? "/home" : `/home?month=${next}`, { scroll: false })
+    const query = new URLSearchParams()
+    if (nextBrand !== "homes") query.set("brand", nextBrand)
+    if (nextMonth && nextMonth !== current) query.set("month", nextMonth)
+    router.replace(query.size ? `/home?${query}` : "/home", { scroll: false })
   }
+  const choose = (next: string) => go(next, brand)
+  // Another brand starts on its own default month (this month, or its next month with carousels).
+  const chooseBrand = (next: CarouselBrand) => go(null, next)
   const step = (by: number) => choose(format(addMonths(monthDate(month === NO_DATE ? current : month), by), "yyyy-MM"))
   const posted = list.filter((p) => p.status === "published").length
 
@@ -95,7 +116,8 @@ export function HomeGallery() {
     <div className="flex min-h-screen flex-col">
       <PageHeader
         title="Home"
-        description="Your carousels in publication order"
+        description={`${brandName} carousels in publication order`}
+        createBrand={brand}
         search={search}
         onSearchChange={(value) => {
           setSearch(value)
@@ -103,6 +125,7 @@ export function HomeGallery() {
         }}
       />
       <div className="flex-1 px-4 py-6 lg:px-8">
+        <BrandTabs value={brand} counts={brandCounts} ready={!loading} onChange={chooseBrand} />
         <div className="mb-8 flex flex-wrap items-center gap-3">
           <div className={cn("flex items-center gap-0.5 rounded-lg border bg-card p-1 shadow-xs", term && "opacity-50")}>
             <Button variant="ghost" size="icon-sm" aria-label="Previous month" onClick={() => step(-1)} disabled={!!term}>
@@ -133,7 +156,7 @@ export function HomeGallery() {
           {!loading && (
             <span className="text-sm text-muted-foreground" role="status">
               {term
-                ? `${list.length} match${list.length === 1 ? "" : "es"} in every month`
+                ? `${list.length} ${brandName} match${list.length === 1 ? "" : "es"} in every month`
                 : `${list.length} carousel${list.length === 1 ? "" : "s"}${posted ? ` · ${posted} posted` : ""}`}
             </span>
           )}
@@ -148,11 +171,15 @@ export function HomeGallery() {
           <div className="mx-auto mt-16 flex max-w-sm flex-col items-center gap-3 text-center">
             <Layers className="size-8 text-muted-foreground" />
             <h2 className="text-lg font-semibold">
-              {term ? "No carousels match your search" : projects.length ? `Nothing scheduled in ${monthLabel(month)}` : "No carousels yet"}
+              {term
+                ? `No ${brandName} carousels match your search`
+                : projects.length
+                  ? `No ${brandName} carousel in ${monthLabel(month)}`
+                  : `No ${brandName} carousels yet`}
             </h2>
             {!term && (
-              <Button onClick={() => openCreate()}>
-                <Plus /> {projects.length ? "Create a carousel" : "Create your first carousel"}
+              <Button onClick={() => openCreate({ brand })}>
+                <Plus /> {projects.length ? `Create a ${brandName} carousel` : `Create your first ${brandName} carousel`}
               </Button>
             )}
           </div>
@@ -190,6 +217,51 @@ export function HomeGallery() {
       />
       {dialogs}
     </div>
+  )
+}
+
+/** Home's brand navigation: Homes.ph (default), FHI Global Property and PicklePlay, with their carousel counts. */
+function BrandTabs({
+  value,
+  counts,
+  ready,
+  onChange,
+}: {
+  value: CarouselBrand
+  counts: Map<CarouselBrand, number>
+  ready: boolean
+  onChange: (brand: CarouselBrand) => void
+}) {
+  return (
+    <nav aria-label="Brands" className="mb-5 -mx-1 overflow-x-auto px-1 pb-1">
+      <div role="tablist" aria-label="Brand" className="inline-flex min-w-max gap-1 rounded-xl border bg-card p-1 shadow-xs">
+        {CAROUSEL_BRANDS.map((b) => {
+          const active = value === b.id
+          return (
+            <button
+              key={b.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onChange(b.id)}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition",
+                active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <span className="flex size-6 shrink-0 items-center justify-center rounded p-0.5" style={{ background: isHomesLook(b.id) ? "#FFFFFF" : b.dark }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={b.logo} alt="" className="size-full object-contain" draggable={false} />
+              </span>
+              {b.name}
+              <span className={cn("min-w-5 rounded-full px-1.5 text-center text-[11px] tabular-nums", active ? "bg-primary-foreground/20" : "bg-muted")}>
+                {ready ? (counts.get(b.id) ?? 0) : "…"}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </nav>
   )
 }
 

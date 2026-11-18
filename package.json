@@ -1,9 +1,11 @@
 {
   "name": "daily-carousel-maker",
-  "version": "1.15.0",
+  "version": "1.53.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-ort.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-ort.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -11,7 +13,8 @@
     "test": "vitest run",
     "desktop": "node scripts/build-desktop.mjs && electron .",
     "desktop:start": "electron .",
-    "desktop:dist": "node scripts/build-desktop.mjs && electron-builder --win --publish never",
+    "desktop:dist": "node scripts/build-desktop.mjs && node scripts/dist-desktop.mjs",
+    "desktop:publish": "node scripts/publish-desktop.mjs",
     "mobile:build": "node scripts/build-mobile.mjs",
     "mobile:apk": "node scripts/build-mobile.mjs --apk"
   },
@@ -27,10 +30,14 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource/inter": "^5.3.0",
+    "@fontsource/league-spartan": "^5.3.0",
     "@fontsource/outfit": "^5.3.0",
+    "@fontsource/playfair-display": "^5.3.0",
     "@fontsource/plus-jakarta-sans": "^5.3.0",
+    "@fontsource/poppins": "^5.3.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
+    "@vercel/blob": "^2.8.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
     "date-fns": "^4.4.0",
@@ -38,6 +45,7 @@
     "konva": "^10.9.0",
     "lucide-react": "^1.64.0",
     "next": "16.4.3",
+    "onnxruntime-web": "1.30.0",
     "radix-ui": "^1.8.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -49,6 +57,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.6.0",
+    "@fontsource/montserrat": "^5.3.0",
+    "@fontsource/quicksand": "^5.3.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24.19.2",
     "@types/react": "^19",
@@ -62,13 +72,13 @@
     "typescript": "^5",
     "vitest": "^5.0.5"
   },
-  "description": "Daily Carousel Maker — plan, design and export Homes.ph social media carousels.",
+  "description": "Homes.ph SocMedSystem — the team's daily social media posts: carousels, news articles, posters, ads and reports.",
   "author": "Homes.ph",
   "main": "electron/main.cjs",
   "build": {
     "appId": "ph.homes.dailycarouselmaker",
-    "productName": "Daily Carousel Maker",
-    "copyright": "Homes.ph",
+    "productName": "Homes.ph SocMedSystem",
+    "copyright": "Copyright © 2026 Homes.ph",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -82,6 +92,10 @@
       {
         "from": "desktop-build/app.env",
         "to": "app.env"
+      },
+      {
+        "from": "chrome-extension",
+        "to": "chrome-extension"
       }
     ],
     "npmRebuild": false,
@@ -96,17 +110,24 @@
         }
       ],
       "icon": "build/icon.png",
-      "executableName": "Daily Carousel Maker"
+      "executableName": "Homes.ph SocMedSystem",
+      "legalTrademarks": "Homes.ph",
+      "signtoolOptions": {
+        "signingHashAlgorithms": [
+          "sha256"
+        ],
+        "rfc3161TimeStampServer": "http://timestamp.digicert.com"
+      }
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "Daily Carousel Maker",
+      "shortcutName": "Homes.ph SocMedSystem",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
-      "artifactName": "Daily-Carousel-Maker-Setup-${version}.${ext}"
+      "artifactName": "Homes.ph-SocMedSystem-Setup-${version}.${ext}"
     },
     "afterPack": "scripts/after-pack.cjs"
   }

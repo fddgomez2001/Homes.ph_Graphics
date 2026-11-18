@@ -1,3 +1,4 @@
+import { isBrandPostTemplate } from "@/lib/brand-templates/catalog"
 import { describe, expect, it } from "vitest"
 import { formatColor, parseColor } from "@/lib/design/color"
 import { coverLayout, containLayout, gradientPoints, imageUpscaleFactor, konvaFillAttrs } from "@/lib/design/geometry"
@@ -290,8 +291,21 @@ describe("Homes.ph content card template (Figma spec)", () => {
 })
 
 describe("templates", () => {
-  it("provides the five starting templates", () => {
-    expect(BUILT_IN_TEMPLATES.map((t) => t.id)).toEqual(["homes-cover", "classic-cover", "homes-card", "text-card", "full-image", "quote-stat"])
+  it("provides the starting templates (and the FHI and PicklePlay carousel templates)", () => {
+    expect(BUILT_IN_TEMPLATES.map((t) => t.id)).toEqual([
+      "homes-cover",
+      "classic-cover",
+      "homes-card",
+      "text-card",
+      "full-image",
+      "quote-stat",
+      "gensan-cover",
+      "gensan-card",
+      "fhi-cover",
+      "fhi-card",
+      "pickleplay-cover",
+      "pickleplay-card",
+    ])
     for (const t of BUILT_IN_TEMPLATES) {
       const d = t.build(DEFAULT_TEMPLATE_CONTEXT)
       expect(d.width).toBe(1254)
@@ -453,9 +467,23 @@ describe("caption draft", () => {
       d.elements = d.elements.map((e) => (e.role === "title" ? { ...e, text: title } : e))
       return { design: d }
     })
+    // Facebook posts (a photo grid, no slides): never "swipe"; card titles keep their spelling.
     expect(draftCaption([{ design: cover }, ...cards])).toBe(
-      "Discover 6 traditional Filipino instruments with stories behind their sound! From kulintang and gangsa to kudyapi, kubing, tongali, and gabbang, swipe through to see what makes each of these instruments special.",
+      "Discover 6 traditional Filipino instruments with stories behind their sound! ✨\n\nFrom Kulintang and Gangsa to Kudyapi, Kubing, Tongali, and Gabbang, see what makes each of these instruments special in the photos below. 👇\n\nWhich one is your favorite? 💬",
     )
+  })
+
+  it("keeps condo names as written and picks a topic emoji", () => {
+    const cover = buildCoverDesign(DEFAULT_TEMPLATE_CONTEXT, { white: "Condos Under", yellow: "₱10 Million", description: "5 Condos In Bonifacio Global City Under ₱10M" })
+    const cards = ["Avida Towers Verge", "Two Serendra"].map((title) => {
+      const d = buildCardDesign()
+      d.elements = d.elements.map((e) => (e.role === "title" ? { ...e, text: title } : e))
+      return { design: d }
+    })
+    const text = draftCaption([{ design: cover }, ...cards])
+    expect(text.split("\n\n")[0]).toBe("Discover 5 condos in Bonifacio Global City under ₱10M! 🏙️✨")
+    expect(text).toContain("From Avida Towers Verge to Two Serendra, see what makes each of these condos special in the photos below. 👇")
+    expect(text).not.toMatch(/swipe/i)
   })
 
   it("keeps multi-word place names", () => {
@@ -633,14 +661,32 @@ describe("FHI Global Property news templates", () => {
       const back = normalizeDesign(JSON.parse(JSON.stringify(d)))
       expect([back.width, back.height]).toEqual([d.width, d.height])
     }
-    expect(NEWS_TEMPLATES.map((t) => `${t.id}:${t.width}x${t.height}`)).toEqual([
+    // (The Homes.ph poster designs 1–10 come after these, 1.51: tests/poster-designs.test.ts.)
+    // (1.52: the brand post templates too: tests/brand-posts.test.ts.)
+    expect(NEWS_TEMPLATES.filter((t) => !/-d\d+-poster-news$/.test(t.id) && !isBrandPostTemplate(t.id)).map((t) => `${t.id}:${t.width}x${t.height}`)).toEqual([
+      "pickleplay-portrait-news:1126x1408",
       "pickleplay-news:1408x1408",
       "fhi-portrait-news:1152x1408",
       "fhi-wide-news:1742x1436",
+      "caraga-portrait-news:1126x1408",
       "caraga-news:1408x1408",
+      "gensan-portrait-news:1126x1408",
+      "gensan-news:1408x1408",
+      "homes-portrait-news:1126x1408",
+      "homes-news:1408x1408",
+      "pickleplay-portrait-poster-news:1126x1408",
+      "pickleplay-portrait-event-poster-news:1126x1408",
+      "fhi-portrait-poster-news:1126x1408",
+      "homes-portrait-poster-news:1126x1408",
+      "gensan-portrait-poster-news:1126x1408",
+      "pickleplay-poster-news:1254x1254",
+      "pickleplay-event-poster-news:1254x1254",
+      "fhi-poster-news:1254x1254",
+      "homes-poster-news:1254x1254",
+      "gensan-poster-news:1254x1254",
     ])
     expect(NEWS_TEMPLATES.every((t) => t.build().width === t.width && t.build().height === t.height && t.id.endsWith("-news"))).toBe(true)
-    expect(newsTemplatesFor("fhi").map((t) => t.id)).toEqual(["fhi-portrait-news", "fhi-wide-news"])
+    expect(newsTemplatesFor("fhi").map((t) => t.id).filter((id) => !isBrandPostTemplate(id))).toEqual(["fhi-portrait-news", "fhi-wide-news", "fhi-portrait-poster-news", "fhi-poster-news"])
     expect(newsBrandOf(buildFhiWideNews())).toBe("fhi")
     expect(newsBrandOf({ templateId: "pickleplay-news" })).toBe("pickleplay")
     expect(NEWS_TIMES.map((t) => t.label)).toEqual(["9 AM", "11 AM", "3 PM", "7 PM", "10 PM"])
@@ -651,7 +697,8 @@ describe("FHI Global Property news templates", () => {
     expect(newsTimeLabel("16:00")).toBe("4 PM")
     expect(newsFileName(new Date(2026, 10, 1), newsTimesFor("caraga")[1], "Homes.ph CARAGA")).toBe("2026-11-01 1.30PM Homes.ph CARAGA.png")
     expect(newsFileName(new Date(2026, 10, 1), NEWS_TIMES[2], "FHI Global Property")).toBe("2026-11-01 3PM FHI Global Property.png")
-  })
+    // The first dynamic import (date-fns and every template) takes seconds while other test files run in parallel.
+  }, 20_000)
 
   it("Homes.ph CARAGA news: Figma boxes on Homes.ph blue, photo framed in the rounded card, white H", async () => {
     const { buildCaragaNews } = await import("@/lib/design/templates")

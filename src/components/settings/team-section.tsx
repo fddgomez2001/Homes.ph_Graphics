@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useCachedQuery } from "@/lib/cache"
 import { addTeammate, getMyProfile, listTeam, removeTeammate, setMyName, type TeamMember } from "@/lib/data/posting"
 import { projectFeatures } from "@/lib/data/projects"
+import { useLocalMode } from "@/lib/local/use-local-mode"
 import { errorMessage } from "@/lib/utils"
 
 /**
@@ -17,6 +18,7 @@ import { errorMessage } from "@/lib/utils"
  * team sees, edits and posts the team's carousels with their own login.
  */
 export function TeamSection() {
+  const local = useLocalMode()
   const features = useCachedQuery("posting:features", () => projectFeatures(), { freshFor: 60_000 })
   const me = useCachedQuery("profile:me", getMyProfile, { freshFor: 60_000 })
   const team = useCachedQuery(features.data?.posting ? "team:list" : null, listTeam, { freshFor: 10_000, errorMessage })
@@ -98,7 +100,15 @@ export function TeamSection() {
         </div>
       </form>
 
-      {features.data && !features.data.posting ? (
+      {local ? (
+        <p className="mt-5 flex gap-3 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+          <Users className="mt-0.5 size-4 shrink-0" />
+          <span>
+            Without an account, your work stays on this computer. To share carousels with teammates, use a team account: Settings → Where your work is saved → Run the welcome setup
+            again.
+          </span>
+        </p>
+      ) : features.data && !features.data.posting ? (
         <div className="mt-5 flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           <Database className="mt-0.5 size-4 shrink-0" />
           <p>

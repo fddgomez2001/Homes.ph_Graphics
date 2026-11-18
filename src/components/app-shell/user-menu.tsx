@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { LogOut, Settings } from "lucide-react"
+import { HardDrive, LogOut, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import { clearCache } from "@/lib/cache"
 import { isSupabaseConfigured } from "@/lib/env"
 import { loginHref } from "@/lib/routes"
 import { getSupabase } from "@/lib/supabase/client"
+import { useLocalMode } from "@/lib/local/use-local-mode"
 
 export function useCurrentUserEmail() {
   const [email, setEmail] = useState<string | null>(null)
@@ -49,6 +50,44 @@ export function useSignOut() {
 }
 
 export function UserMenu() {
+  const local = useLocalMode()
+  if (local) return <LocalUserMenu />
+  return <AccountUserMenu />
+}
+
+/** No account (desktop app): the work is saved on this computer. */
+function LocalUserMenu() {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
+          <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <HardDrive className="size-4" />
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="font-normal">
+          <div className="text-sm font-medium text-foreground">No account</div>
+          <div className="text-xs text-muted-foreground">Your work is saved on this computer</div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/settings#work-folder">
+            <HardDrive /> Where your work is saved
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings">
+            <Settings /> Settings
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function AccountUserMenu() {
   const email = useCurrentUserEmail()
   const signOut = useSignOut()
   const initial = (email?.[0] ?? "?").toUpperCase()

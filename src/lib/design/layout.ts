@@ -45,6 +45,9 @@ export function applyTextStack(design: SlideDesign, measure: MeasureText): Slide
   const gaps = shown.map((_, i) => itemGap(shown, i))
   const total = heights.reduce((a, b) => a + b, 0) + gaps.reduce((a, b) => a + b, 0)
   let cursor = stack.anchor === "center" ? (stack.center ?? design.height / 2) - total / 2 : stack.bottom - total
+  // Too tall for the space above the bottom line: it starts at the top line and runs down (not past maxBottom).
+  // (A pixel over is rounding, not a taller block.)
+  if (stack.spill && stack.anchor !== "center" && cursor < stack.minTop - 1) cursor = Math.min(stack.minTop, (stack.maxBottom ?? stack.bottom) - total)
 
   const positions = new Map<string, number>()
   shown.forEach((entry, i) => {

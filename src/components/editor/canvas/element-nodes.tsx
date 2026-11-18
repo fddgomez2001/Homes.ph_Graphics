@@ -4,7 +4,9 @@ import { memo, useMemo } from "react"
 import type Konva from "konva"
 import type { KonvaEventObject } from "konva/lib/Node"
 import { Group, Image as KImage, Label, Rect, Tag, Text } from "react-konva"
-import { coverLayout, focusFromImageOffset, konvaFillAttrs } from "@/lib/design/geometry"
+import { blurBackdrop, blurredCopy } from "@/lib/design/blur-fill"
+import { slotDef } from "@/lib/design/cover-collage"
+import { coverLayout, focusFromImageOffset, frameLayout, konvaFillAttrs } from "@/lib/design/geometry"
 import { glowBitmap, isGlowShape } from "@/lib/design/glow"
 import { useCanvasImage } from "@/lib/design/image-cache"
 import {
@@ -32,6 +34,8 @@ export interface NodeHandlers {
 
 interface NodeProps {
   el: DesignElement
+  /** A brand post's template layer: its picture, drawn from the template (1.53). */
+  templateImage?: HTMLCanvasElement
   hidden: boolean
   cropping: boolean
   interactive: boolean
@@ -66,7 +70,7 @@ export const ElementNode = memo(function ElementNode(props: NodeProps) {
     case "text":
       return <TextNode {...props} el={props.el} />
     case "image":
-      return <ImageNode {...props} el={props.el} />
+      return props.el.slot ? <SlotNode {...props} el={props.el} /> : <ImageNode {...props} el={props.el} />
     case "shape":
       return <ShapeNode {...props} el={props.el} />
   }
@@ -144,14 +148,21 @@ function RectNode({ el, interactive, handlers }: NodeProps & { el: ShapeElement 
   )
 }
 
-function ImageNode({ el, interactive, cropping, viewScale, handlers }: NodeProps & { el: ImageElement }) {
-  const { image, status } = useCanvasImage(el.src)
+function ImageNode({ el, interactive, cropping, viewScale, handlers, templateImage }: NodeProps & { el: ImageElement }) {
+  const loaded = useCanvasImage(el.templatePart ? null : el.src)
+  // A template layer shows the template's own drawing (a canvas, drawn like a picture).
+  const image = el.templatePart ? (templateImage as unknown as HTMLImageElement | undefined) : loaded.image
+  const status = el.templatePart ? (templateImage ? "loaded" : "loading") : loaded.status
 
   if (cropping && image && el.fit === "cover") {
     return <CropModeImage el={el} image={image} viewScale={viewScale} onCropChange={handlers.onCropChange} />
   }
 
-  const draw = image ? imageDrawAttrs(el, image) : null
+  // A backdrop that follows the photo (1.51 poster designs): drawn as its blurred copy.
+  const bitmapImage = image && el.blurred ? blurredCopy(image) : image
+  const draw = image && bitmapImage ? imageDrawAttrs(el, el.blurred ? { naturalWidth: bitmapImage.width, naturalHeight: bitmapImage.height } : image) : null
+  // A zoomed-out poster photo: its blurred copy fills the frame behind it.
+  const backdrop = image ? blurBackdrop(el, image) : null
   return (
     <Group
       {...imageGroupAttrs(el)}
@@ -165,17 +176,23 @@ function ImageNode({ el, interactive, cropping, viewScale, handlers }: NodeProps
         group.findOne(".hit")?.setAttrs({ width, height })
         group.findOne(".placeholder-bg")?.setAttrs({ width, height })
         const bitmap = group.findOne(".bitmap")
-        if (bitmap && image) {
-          const { crop, ...rect } = imageDrawAttrs({ ...el, width, height }, image)
+        if (bitmap && image && bitmapImage) {
+          const { crop, ...rect } = imageDrawAttrs({ ...el, width, height }, el.blurred ? { naturalWidth: bitmapImage.width, naturalHeight: bitmapImage.height } : image)
           bitmap.setAttrs({ ...rect, crop })
+        }
+        const fill = group.findOne(".blur-fill")
+        if (fill && image) {
+          const next = blurBackdrop({ ...el, width, height }, image)
+          if (next) fill.setAttrs({ width: next.width, height: next.height, crop: next.crop })
         }
       }}
     >
       <Rect name="hit" width={el.width} height={el.height} fill="rgba(0,0,0,0)" />
-      {image && draw ? (
+      {backdrop && <KImage name="blur-fill" {...backdrop} sceneFunc={highQualityImageSceneFunc} listening={false} />}
+      {bitmapImage && draw ? (
         <KImage
           name="bitmap"
-          image={image}
+          image={bitmapImage}
           x={draw.x}
           y={draw.y}
           width={draw.width}
@@ -187,6 +204,71 @@ function ImageNode({ el, interactive, cropping, viewScale, handlers }: NodeProps
         />
       ) : (
         <ImagePlaceholder el={el} status={status} />
+      )}
+    </Group>
+  )
+}
+
+/**
+ * A photo slot of the cover collage. The frame stays where the template puts it, cut to the
+ * slot's shape; the photo inside is dragged to move it (and zoomed with the mouse wheel or the
+ * panel). An empty slot shows its color and which card's photo will appear in it.
+ */
+function SlotNode({ el, handlers }: NodeProps & { el: ImageElement }) {
+  const { image, status } = useCanvasImage(el.src)
+  const def = slotDef(el.slot)
+  const layout = image ? coverLayout(image.naturalWidth, image.naturalHeight, el.width, el.height, el.zoom, el.focusX, el.focusY) : null
+  const select = () => handlers.onSelect(el.id)
+  const index = el.slot?.index ?? 0
+  const card = el.slot?.card
+  const message = el.src
+    ? status === "error"
+      ? `Photo ${index}\nThis photo could not be loaded`
+      : `Photo ${index}\nLoading…`
+    : card
+      ? `Photo ${index}\nShows Card ${card}'s photo`
+      : `Photo ${index}\nNo photo yet`
+  return (
+    <Group
+      {...imageGroupAttrs(el)}
+      onMouseDown={select}
+      onTouchStart={select}
+      onMouseEnter={(e) => setCursor(e, image ? "grab" : "pointer")}
+      onMouseLeave={(e) => setCursor(e, "")}
+    >
+      <Rect name="hit" width={el.width} height={el.height} fill={def?.color ?? "#DCE3EC"} />
+      {image && layout ? (
+        <KImage
+          name="bitmap"
+          image={image}
+          {...layout.image}
+          draggable
+          sceneFunc={highQualityImageSceneFunc}
+          onDragMove={(e) => {
+            // The photo always fills its slot: it stops at its own edges.
+            const node = e.target
+            const x = Math.min(0, Math.max(-layout.overflowX, node.x()))
+            const y = Math.min(0, Math.max(-layout.overflowY, node.y()))
+            node.position({ x, y })
+            handlers.onCropChange(el.id, focusFromImageOffset(x, y, layout.overflowX, layout.overflowY))
+          }}
+        />
+      ) : (
+        <Text
+          text={message}
+          width={el.width}
+          height={el.height}
+          align="center"
+          verticalAlign="middle"
+          fontFamily="Inter"
+          fontStyle="700"
+          fontSize={30}
+          lineHeight={1.35}
+          fill="#FFFFFF"
+          shadowColor="rgba(0,0,0,0.35)"
+          shadowBlur={6}
+          listening={false}
+        />
       )}
     </Group>
   )
@@ -241,7 +323,11 @@ function CropModeImage({
   viewScale: number
   onCropChange: (id: string, patch: { focusX: number; focusY: number }) => void
 }) {
-  const layout = coverLayout(image.naturalWidth, image.naturalHeight, el.width, el.height, el.zoom, el.focusX, el.focusY)
+  // Where the photo can go: the free space (a zoomed-out blur-fill photo) or how far it overflows.
+  const frame = el.blurFill ? frameLayout(image.naturalWidth, image.naturalHeight, el.width, el.height, el.zoom, el.focusX, el.focusY) : null
+  const cover = coverLayout(image.naturalWidth, image.naturalHeight, el.width, el.height, el.zoom, el.focusX, el.focusY)
+  const layout = frame ? { image: frame.image, rangeX: frame.rangeX, rangeY: frame.rangeY } : { image: cover.image, rangeX: -cover.overflowX, rangeY: -cover.overflowY }
+  const focusAt = (offset: number, range: number) => (Math.abs(range) > 0.01 ? Math.min(1, Math.max(0, offset / range)) : 0.5)
   return (
     <Group x={el.x} y={el.y} rotation={el.rotation}>
       <KImage
@@ -254,10 +340,10 @@ function CropModeImage({
         onMouseLeave={(e) => setCursor(e, "")}
         onDragMove={(e) => {
           const node = e.target
-          const x = Math.min(0, Math.max(-layout.overflowX, node.x()))
-          const y = Math.min(0, Math.max(-layout.overflowY, node.y()))
+          const x = Math.min(Math.max(0, layout.rangeX), Math.max(Math.min(0, layout.rangeX), node.x()))
+          const y = Math.min(Math.max(0, layout.rangeY), Math.max(Math.min(0, layout.rangeY), node.y()))
           node.position({ x, y })
-          onCropChange(el.id, focusFromImageOffset(x, y, layout.overflowX, layout.overflowY))
+          onCropChange(el.id, { focusX: focusAt(x, layout.rangeX), focusY: focusAt(y, layout.rangeY) })
         }}
       />
       <Group clipX={0} clipY={0} clipWidth={el.width} clipHeight={el.height} listening={false} opacity={el.opacity}>

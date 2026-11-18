@@ -52,6 +52,53 @@ export function containLayout(naturalWidth: number, naturalHeight: number, frame
   return { scale, image: { x: (frameWidth - width) / 2, y: (frameHeight - height) / 2, width, height } }
 }
 
+/**
+ * Cover-fit that can also zoom out (zoom < 1, the blur-fill poster photo): at 1 the photo just
+ * covers the frame, below 1 it gets smaller than the frame in one or both directions. The
+ * focus places the photo in either case (0 = left / top edge, 1 = right / bottom edge).
+ * `dest` is the part of the frame the photo shows in and `crop` the source pixels drawn there;
+ * `rangeX` / `rangeY` are the frame size minus the photo size (negative when the photo is
+ * bigger), so dragging by d frame pixels moves the focus by d / range.
+ */
+export function frameLayout(
+  naturalWidth: number,
+  naturalHeight: number,
+  frameWidth: number,
+  frameHeight: number,
+  zoom = 1,
+  focusX = 0.5,
+  focusY = 0.5,
+) {
+  const nw = Math.max(1, naturalWidth)
+  const nh = Math.max(1, naturalHeight)
+  const fw = Math.max(1, frameWidth)
+  const fh = Math.max(1, frameHeight)
+  const scale = Math.max(fw / nw, fh / nh) * Math.max(0.01, zoom)
+  const width = nw * scale
+  const height = nh * scale
+  const rangeX = fw - width
+  const rangeY = fh - height
+  const image: Rect = { x: rangeX * clamp01(focusX), y: rangeY * clamp01(focusY), width, height }
+  const x0 = Math.max(0, image.x)
+  const y0 = Math.max(0, image.y)
+  const x1 = Math.min(fw, image.x + width)
+  const y1 = Math.min(fh, image.y + height)
+  const dest: Rect = { x: x0, y: y0, width: Math.max(0, x1 - x0), height: Math.max(0, y1 - y0) }
+  const crop: Rect = { x: (x0 - image.x) / scale, y: (y0 - image.y) / scale, width: dest.width / scale, height: dest.height / scale }
+  // Less than half a pixel uncovered counts as covered (no blurred sliver at the edges).
+  const covers = dest.width >= fw - 0.5 && dest.height >= fh - 0.5
+  return { scale, image, dest, crop, rangeX, rangeY, covers }
+}
+
+/** The zoom at which the whole photo just fits inside the frame (≤ 1). */
+export function fitZoom(naturalWidth: number, naturalHeight: number, frameWidth: number, frameHeight: number) {
+  const nw = Math.max(1, naturalWidth)
+  const nh = Math.max(1, naturalHeight)
+  const cover = Math.max(frameWidth / nw, frameHeight / nh)
+  const contain = Math.min(frameWidth / nw, frameHeight / nh)
+  return contain / cover
+}
+
 /** Inverse of coverLayout: focus values for an image dragged to (imageX, imageY) in frame space. */
 export function focusFromImageOffset(imageX: number, imageY: number, overflowX: number, overflowY: number) {
   return {

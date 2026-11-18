@@ -59,14 +59,25 @@ export function toSavePayload(slide: EditorSlide): SaveSlidePayload {
 }
 
 /**
+ * How an editor saves when it doesn't edit the saved slides themselves: the Rentsouq.ae version of an FHI
+ * poster is edited, and the FHI poster is saved (with that version inside it). `backupId`: where unsaved
+ * work is mirrored (apart from the poster's own).
+ */
+export interface SaveAs {
+  slides: (edited: EditorSlide[]) => EditorSlide[]
+  backupId: string
+}
+
+/**
  * Debounced autosave with a single request in flight at a time. Each save sends
  * the revision it was based on, so the server rejects stale writes (409) instead
  * of overwriting newer edits. Failed saves retry with backoff and when the
  * browser comes back online; unsaved work is mirrored to localStorage.
  */
-export function useAutosave(store: EditorStore) {
+export function useAutosave(store: EditorStore, saveAs?: SaveAs) {
   useEffect(() => {
     const projectId = store.getState().project.id
+    const backupId = saveAs?.backupId ?? projectId
     let timer: ReturnType<typeof setTimeout> | null = null
     let backupTimer: ReturnType<typeof setTimeout> | null = null
     let inflight: Promise<void> | null = null
@@ -95,8 +106,10 @@ export function useAutosave(store: EditorStore) {
       const project: Record<string, unknown> = {}
       for (const key of Object.keys(s.dirtyMeta) as (keyof ProjectMeta)[]) project[key] = s.project[key]
 
+      // What is saved: the slides, or (the Rentsouq.ae version) the poster they belong to.
+      const slides = saveAs ? saveAs.slides(s.slides) : s.slides
       // Refresh the cover preview used by the calendar and lists when the cover changed.
-      const cover = s.slides[0]
+      const cover = slides[0]
       if (cover.design !== lastThumbSource) {
         try {
           project.thumbnail = await renderThumbnail(cover.design, 360)
@@ -112,11 +125,11 @@ export function useAutosave(store: EditorStore) {
           projectId,
           expectedRevision: s.revision,
           project,
-          slides: s.slides.map(toSavePayload),
+          slides: slides.map(toSavePayload),
         })
         store.getState().markSaved(result.revision, version)
         retryDelay = 0
-        if (!isDirty()) clearBackup(projectId)
+        if (!isDirty()) clearBackup(backupId)
       } catch (error) {
         if (error instanceof ConflictError) {
           store.getState().markConflict()
@@ -155,7 +168,7 @@ export function useAutosave(store: EditorStore) {
       backupTimer = setTimeout(() => {
         const s = store.getState()
         if (s.changeVersion > s.savedVersion) {
-          writeBackup({ projectId, revision: s.revision, savedAt: Date.now(), project: s.project, slides: s.slides })
+          writeBackup({ projectId: backupId, revision: s.revision, savedAt: Date.now(), project: s.project, slides: s.slides })
         }
       }, 500)
     })
@@ -186,5 +199,5 @@ export function useAutosave(store: EditorStore) {
       }
       store.setState({ requestSave: () => {} })
     }
-  }, [store])
+  }, [store, saveAs])
 }

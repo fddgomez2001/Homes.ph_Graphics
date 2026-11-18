@@ -1,0 +1,128 @@
+{
+  "manifest_version": 3,
+  "name": "Homes.ph Publisher",
+  "version": "1.2.1",
+  "description": "The pages assigned to you in Homes.ph SocMedSystem: today's articles to publish on the dash board (Publish, Send to Facebook with the app's picture, Post now), the carousel, advertisements, Daily Trend News and quotes, your tasks and reports in My Tasks (dtr.homes.ph), and the daily report in the team's Messenger chat.",
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "action": {
+    "default_title": "Homes.ph Publisher",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "alarms",
+    "clipboardWrite",
+    "notifications",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://dash.homes.ph/*",
+    "https://homes.ph/*",
+    "https://www.homes.ph/*",
+    "https://dtr.homes.ph/*",
+    "https://www.messenger.com/*",
+    "https://filipinohomes123.s3.ap-southeast-1.amazonaws.com/*",
+    "https://*.amazonaws.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "shared.js",
+        "panel.js",
+        "launcher.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://dash.homes.ph/*"
+      ],
+      "js": [
+        "shared.js",
+        "page-ui.js",
+        "dash-dialogs.js",
+        "dash-posts.js",
+        "dash-article.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://homes.ph/*",
+        "https://www.homes.ph/*"
+      ],
+      "js": [
+        "shared.js",
+        "page-ui.js",
+        "fb-autopost.js",
+        "homes-news.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://dtr.homes.ph/*"
+      ],
+      "js": [
+        "shared.js",
+        "page-ui.js",
+        "dtr.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.messenger.com/*"
+      ],
+      "js": [
+        "shared.js",
+        "page-ui.js",
+        "messenger.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://homes.ph/news/*",
+        "https://www.homes.ph/news/*"
+      ],
+      "js": [
+        "homes-copy-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "*.png"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
+    }
+  ]
+}

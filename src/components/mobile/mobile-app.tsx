@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format, isToday } from "date-fns"
-import { ArrowLeft, ClipboardList, GalleryHorizontalEnd, Newspaper, RefreshCw, Settings, WifiOff } from "lucide-react"
+import { ArrowLeft, ClipboardList, GalleryHorizontalEnd, Newspaper, RefreshCw, Send, Settings, WifiOff } from "lucide-react"
 import { SetupGate } from "@/components/app-shell/setup-gate"
 import { BrandMark } from "@/components/brand-mark"
 import { ExportProvider } from "@/components/export/export-provider"
@@ -15,19 +15,23 @@ import { SiteLinksProvider, type SiteLinks } from "@/components/site/site-links"
 import { ThemeToggle } from "@/components/theme/theme"
 import { Button } from "@/components/ui/button"
 import { pruneCache } from "@/lib/cache"
+import { watchPublisher } from "@/lib/publisher/host"
 import { isSupabaseConfigured } from "@/lib/env"
 import { getSupabase } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { MobileLogin } from "./mobile-login"
 import { MobileNews } from "./mobile-news"
+import { MobilePublisher } from "./mobile-publisher"
 import { MobileSettings } from "./mobile-settings"
 import { useNativeShell } from "./native-shell"
 
-type Tab = "carousels" | "news" | "report" | "settings"
+type Tab = "carousels" | "news" | "publisher" | "report" | "settings"
 
 const TABS: { id: Tab; label: string; title: string; icon: typeof Settings }[] = [
   { id: "carousels", label: "Carousels", title: "Carousels", icon: GalleryHorizontalEnd },
   { id: "news", label: "News", title: "News posts", icon: Newspaper },
+  // Everything the Homes.ph Publisher Chrome extension does, in the app.
+  { id: "publisher", label: "Publisher", title: "Publisher", icon: Send },
   { id: "report", label: "Report", title: "Daily report", icon: ClipboardList },
   { id: "settings", label: "Settings", title: "Settings", icon: Settings },
 ]
@@ -74,8 +78,8 @@ function useOnline() {
 }
 
 /**
- * The Android app: one page with four tabs (carousels to post, the day's news
- * posts, the daily report, settings). A carousel opens on top of the list, so
+ * The Android app: one page with five tabs (carousels to post, the day's news
+ * posts, the Publisher, the daily report, settings). A carousel opens on top of the list, so
  * going back returns to the same place in it.
  */
 export function MobileApp() {
@@ -162,6 +166,17 @@ function SignedIn() {
   }
   const title = TABS.find((t) => t.id === tab)!.title
 
+  // The Publisher: its number to post on the tab; an alert or a finished job brings its panel back.
+  const [toPost, setToPost] = useState({ text: "", late: false })
+  useEffect(
+    () =>
+      watchPublisher({
+        badge: (b) => setToPost({ text: b.text, late: b.color.toUpperCase() === "#D97706" }),
+        panel: () => replaceQuery({ tab: "publisher", id: null }),
+      }),
+    [],
+  )
+
   return (
     <SiteLinksProvider value={links}>
       <ExportProvider>
@@ -195,7 +210,7 @@ function SignedIn() {
             {openId && <CarouselSheet id={openId} onClose={closeCarousel} />}
           </SetupGate>
 
-          <BottomNav tab={tab} onTab={goTab} />
+          <BottomNav tab={tab} onTab={goTab} toPost={toPost} />
         </div>
       </ExportProvider>
     </SiteLinksProvider>
@@ -204,6 +219,7 @@ function SignedIn() {
 
 function TabView({ tab }: { tab: Tab }) {
   if (tab === "news") return <MobileNews />
+  if (tab === "publisher") return <MobilePublisher />
   if (tab === "report") return <MobileReport />
   if (tab === "settings") return <MobileSettings />
   return <SiteHome />
@@ -250,13 +266,13 @@ function CarouselSheet({ id, onClose }: { id: string; onClose: () => void }) {
   )
 }
 
-function BottomNav({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
+function BottomNav({ tab, onTab, toPost }: { tab: Tab; onTab: (tab: Tab) => void; toPost: { text: string; late: boolean } }) {
   return (
     <nav
       aria-label="Sections"
       className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80"
     >
-      <ul className="mx-auto grid h-16 max-w-xl grid-cols-4">
+      <ul className="mx-auto grid h-16 max-w-xl grid-cols-5">
         {TABS.map((t) => {
           const active = t.id === tab
           const Icon = t.icon
@@ -271,8 +287,16 @@ function BottomNav({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
                   active ? "text-primary" : "text-muted-foreground active:text-foreground",
                 )}
               >
-                <span className={cn("flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200", active && "bg-primary/12")}>
+                <span className={cn("relative flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200", active && "bg-primary/12")}>
                   <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} />
+                  {t.id === "publisher" && toPost.text && (
+                    <span
+                      aria-label={`${toPost.text} to post today`}
+                      className={cn("absolute -top-1 right-1 min-w-[18px] rounded-full px-1 text-center text-[10px] leading-[18px] font-bold", toPost.late ? "bg-amber-500 text-amber-950" : "bg-primary text-primary-foreground")}
+                    >
+                      {toPost.text}
+                    </span>
+                  )}
                 </span>
                 {t.label}
               </button>

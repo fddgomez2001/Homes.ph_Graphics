@@ -3,12 +3,13 @@
 import { useEffect } from "react"
 import { toast } from "sonner"
 import { getFloatBridge, setFloatMode, useFloatMode, type FloatState } from "@/lib/float"
-import { buildCardDesign, slideLabel } from "@/lib/design/templates"
+import { buildCardDesign, carouselBrandOfSlides, slideLabel } from "@/lib/design/templates"
 import { importImageFiles, pasteImageFromUrl } from "./image-import"
 import { saveStatusOf, type EditorState, type EditorStore } from "./store"
 
-function toFloatState(s: EditorState): FloatState {
+function toFloatState(s: EditorState, ack: number): FloatState {
   return {
+    ack,
     projectId: s.project.id,
     title: s.project.title,
     caption: s.project.caption,
@@ -36,9 +37,11 @@ export function useFloatBridge(store: EditorStore) {
     void bridge.enable()
 
     let timer: ReturnType<typeof setTimeout> | null = null
+    // The last text edit applied, echoed back so the float can tell its own late echoes apart.
+    let ack = 0
     const publish = () => {
       timer = null
-      bridge.publish(toFloatState(store.getState()))
+      bridge.publish(toFloatState(store.getState(), ack))
     }
     publish()
     const unsubscribe = store.subscribe((s, prev) => {
@@ -58,16 +61,21 @@ export function useFloatBridge(store: EditorStore) {
       switch (command.type) {
         case "set-text":
           if (typeof command.text === "string") s.updateElement(command.elementId, { text: command.text.slice(0, 5000) }, { history: `text:${command.elementId}` })
+          if (typeof command.seq === "number") ack = command.seq
+          if (!timer) timer = setTimeout(publish, 50)
           break
         case "set-caption":
           if (typeof command.text === "string") s.setMeta({ caption: command.text.slice(0, 20000) })
+          if (typeof command.seq === "number") ack = command.seq
+          if (!timer) timer = setTimeout(publish, 50)
           break
         case "select-slide":
           s.setCurrentSlide(command.slideId)
           break
         case "add-card": {
-          // A new Homes.ph content card right after the slide shown in the float; the editor switches to it.
-          const id = s.addSlide(buildCardDesign(), { afterId: command.afterSlideId })
+          // A new content card in the carousel's brand right after the slide shown in the float; the editor switches to it.
+          const brand = carouselBrandOfSlides(s.slides.map((sl) => sl.design))
+          const id = s.addSlide(buildCardDesign(brand), { afterId: command.afterSlideId })
           store.getState().setCurrentSlide(id)
           break
         }

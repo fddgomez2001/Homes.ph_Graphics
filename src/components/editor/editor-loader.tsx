@@ -11,6 +11,7 @@ import { getTemplateContext } from "@/lib/data/settings"
 import { relinkDesign } from "@/lib/image-sync"
 import { ensureFonts } from "@/lib/design/fonts"
 import { normalizeDesign } from "@/lib/design/normalize"
+import { fromLookDesign, isBrandPoster, lookDesign } from "@/components/posters/poster-shared"
 import type { EditorSlide } from "@/lib/design/types"
 import { errorMessage } from "@/lib/utils"
 import type { EditorInit } from "./editor"
@@ -56,10 +57,13 @@ type LoadState =
 
 export function EditorLoader({
   projectId,
+  look = null,
   initialSlideId,
   addCard,
 }: {
   projectId: string
+  /** "rentsouq": edit an FHI poster's Rentsouq.ae version. */
+  look?: "rentsouq" | null
   initialSlideId?: string | null
   addCard?: boolean
 }) {
@@ -79,15 +83,28 @@ export function EditorLoader({
         // Images that finished uploading since the last save point at Cloudinary again.
         const slides = await Promise.all(normalized.map(async (s) => ({ ...s, design: await relinkDesign(s.design) })))
         const relinked = slides.some((s, i) => s.design !== normalized[i].design)
+        // The Rentsouq.ae version of an FHI poster: it's what's edited; the poster (with it inside) is what's saved.
+        const asLook = look === "rentsouq" && slides.length === 1 && isBrandPoster(slides[0].design, "fhi")
+        let poster = slides[0].design
+        const edited: EditorSlide[] = asLook ? [{ ...slides[0], design: lookDesign(poster, "rentsouq") }] : slides
+        const saveAs = asLook
+          ? {
+              backupId: `${projectId}:rentsouq`,
+              slides: (list: EditorSlide[]) => {
+                poster = fromLookDesign(poster, list[0].design)
+                return [{ ...list[0], design: poster }]
+              },
+            }
+          : undefined
         // Real fonts must be ready before text is measured and laid out.
-        await ensureFonts(slides.map((s) => s.design))
-        const init: EditorInit = { project, slides, templateContext, initialSlideId, addCard, dirty: relinked }
-        const backup = readBackup(projectId)
+        await ensureFonts(edited.map((s) => s.design))
+        const init: EditorInit = { project, slides: edited, templateContext, initialSlideId, addCard, dirty: relinked, ...(saveAs ? { saveAs, look: "rentsouq" as const } : {}) }
+        const backup = readBackup(saveAs?.backupId ?? projectId)
         if (cancelled) return
         if (backup && backup.savedAt > Date.parse(project.updated_at) && backup.slides?.length && (await hasRealChanges(backup, init))) {
           setState({ status: "recover", init, backup })
         } else {
-          if (backup) clearBackup(projectId)
+          if (backup) clearBackup(saveAs?.backupId ?? projectId)
           setState({ status: "ready", init })
         }
       } catch (error) {
@@ -99,7 +116,7 @@ export function EditorLoader({
     }
     // The URL options only matter for the first load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId])
+  }, [projectId, look])
 
   if (state.status === "loading") return <EditorSkeleton message="Loading carousel…" />
   if (state.status === "error") {
@@ -135,7 +152,7 @@ export function EditorLoader({
             <Button
               variant="outline"
               onClick={() => {
-                clearBackup(init.project.id)
+                clearBackup(init.saveAs?.backupId ?? init.project.id)
                 setState({ status: "ready", init })
               }}
             >

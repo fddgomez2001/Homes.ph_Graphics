@@ -6,6 +6,7 @@ import { descriptionStatus } from "@/lib/design/content-rules"
 import type { TextElement } from "@/lib/design/types"
 import { DescriptionHint } from "./description-hint"
 import { useEditor, useEditorStore } from "./store"
+import { isContentCard } from "@/lib/design/templates"
 
 /**
  * AI help for the slide text that needs it most: the card description (when
@@ -20,7 +21,7 @@ export function SlideTextAi({ el }: { el: TextElement }) {
   // Always the latest text of this element when the request is made.
   const current = () => (store.getState().slides[index]?.design.elements.find((e) => e.id === el.id) as TextElement | undefined) ?? el
 
-  if (index > 0 && el.role === "description" && templateId === "homes-card") {
+  if (index > 0 && el.role === "description" && isContentCard(templateId)) {
     const { lines } = descriptionStatus(el, measure)
     const off = lines > 3 || lines < 2
     return (

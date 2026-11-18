@@ -3,9 +3,11 @@
 import type { ReactNode } from "react"
 import { Menu, Plus, Search, X } from "lucide-react"
 import { useCreateCarousel } from "@/components/projects/create-carousel-dialog"
+import type { CarouselBrand } from "@/lib/design/templates"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme/theme"
+import { useAssignment } from "@/lib/assignment"
 import { useShell } from "./app-shell"
 import { UserMenu } from "./user-menu"
 
@@ -17,6 +19,7 @@ export function PageHeader({
   searchPlaceholder = "Search carousels…",
   children,
   createDate,
+  createBrand,
 }: {
   title: string
   description?: string
@@ -27,9 +30,13 @@ export function PageHeader({
   children?: ReactNode
   /** Date to preselect when creating from this page. */
   createDate?: Date | null
+  /** Brand to preselect when creating from this page (Homes.ph by default). */
+  createBrand?: CarouselBrand | null
 }) {
   const openCreate = useCreateCarousel()
   const { openNav } = useShell()
+  // Only people who make the carousel (Settings → Assigned pages).
+  const carousel = useAssignment().assignment.carousel
   return (
     <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
       <div className="flex flex-wrap items-center gap-3 px-4 py-3 lg:px-6">
@@ -64,10 +71,12 @@ export function PageHeader({
           </div>
         )}
         {children}
-        <Button onClick={() => openCreate({ date: createDate ?? null })} className="h-9 px-3.5">
-          <Plus /> <span className="hidden sm:inline">Create New Carousel</span>
-          <span className="sm:hidden">New</span>
-        </Button>
+        {carousel && (
+          <Button onClick={() => openCreate({ date: createDate ?? null, brand: createBrand ?? null })} className="h-9 px-3.5">
+            <Plus /> <span className="hidden sm:inline">Create New Carousel</span>
+            <span className="sm:hidden">New</span>
+          </Button>
+        )}
         <ThemeToggle />
         <UserMenu />
       </div>

@@ -1,6 +1,8 @@
 "use client"
 
 import { invalidate } from "@/lib/cache"
+import { localApi } from "@/lib/local/client"
+import { DEFAULT_POST_PAGES, isLocalMode, LOCAL_USER_ID } from "@/lib/local/shared"
 import { getSupabase } from "@/lib/supabase/client"
 import type { ProjectRow } from "@/lib/types"
 import { toDataError } from "./errors"
@@ -34,12 +36,14 @@ export interface TeamMember {
 }
 
 export async function listPostPages(): Promise<PostPage[]> {
+  if (isLocalMode()) return DEFAULT_POST_PAGES
   const { data, error } = await getSupabase().from("carousel_post_pages").select("key,name,short_name,sort").order("sort")
   if (error) throw toDataError(error)
   return (data ?? []) as PostPage[]
 }
 
 export async function listPostChecks(projectId: string): Promise<PostCheck[]> {
+  if (isLocalMode()) return localApi<PostCheck[]>("GET", `checks/${encodeURIComponent(projectId)}`)
   const { data, error } = await getSupabase()
     .from("carousel_post_checks")
     .select("project_id,page_key,checked_by,checked_by_name,checked_at")
@@ -54,6 +58,12 @@ export async function listPostChecks(projectId: string): Promise<PostCheck[]> {
  * and marks the carousel Published once every page is ticked.
  */
 export async function setPostCheck(projectId: string, pageKey: string, checked: boolean): Promise<void> {
+  if (isLocalMode()) {
+    await localApi("POST", "checks", { projectId, pageKey, checked })
+    invalidate(`posting:checks:${projectId}`)
+    invalidate("projects:")
+    return
+  }
   const table = getSupabase().from("carousel_post_checks")
   const { error } = checked
     ? await table.upsert({ project_id: projectId, page_key: pageKey }, { onConflict: "project_id,page_key", ignoreDuplicates: true })
@@ -73,6 +83,11 @@ export function postingState(project: Pick<ProjectRow, "status" | "posted_count"
 
 /** Everyone in the teams the signed-in user belongs to. */
 export async function listTeam(): Promise<TeamMember[]> {
+  // On this computer there's no team: just you.
+  if (isLocalMode()) {
+    const me = await getMyProfile()
+    return [{ team_id: "local", user_id: LOCAL_USER_ID, email: "", name: me?.name ?? "", role: "owner", is_me: true }]
+  }
   const { data, error } = await getSupabase().rpc("carousel_team_list")
   if (error) throw toDataError(error)
   return (data ?? []) as TeamMember[]
@@ -80,6 +95,7 @@ export async function listTeam(): Promise<TeamMember[]> {
 
 /** Shares your carousels with someone who already has an account. */
 export async function addTeammate(email: string): Promise<void> {
+  if (isLocalMode()) throw new Error("Teammates need the team cloud account. This app saves your work on this computer only.")
   const { error } = await getSupabase().rpc("carousel_team_add", { p_email: email.trim() })
   if (error) throw toDataError(error)
   invalidate("team:")
@@ -88,6 +104,7 @@ export async function addTeammate(email: string): Promise<void> {
 
 /** Removes a teammate (as the owner) or leaves a team (yourself). */
 export async function removeTeammate(userId: string): Promise<void> {
+  if (isLocalMode()) return
   const { error } = await getSupabase().rpc("carousel_team_remove", { p_user: userId })
   if (error) throw toDataError(error)
   invalidate("team:")
@@ -102,6 +119,10 @@ export interface MyProfile {
 }
 
 export async function getMyProfile(): Promise<MyProfile | null> {
+  if (isLocalMode()) {
+    const { name } = await localApi<{ name: string }>("GET", "profile")
+    return { id: LOCAL_USER_ID, email: "", name }
+  }
   const { data } = await getSupabase().auth.getSession()
   const user = data.session?.user
   if (!user) return null
@@ -111,6 +132,12 @@ export async function getMyProfile(): Promise<MyProfile | null> {
 
 /** Saves the name teammates see in "Made by" and "Posted by". */
 export async function setMyName(name: string): Promise<void> {
+  if (isLocalMode()) {
+    await localApi("PUT", "profile", { name })
+    invalidate("profile:")
+    invalidate("team:")
+    return
+  }
   const supabase = getSupabase()
   const { error } = await supabase.auth.updateUser({ data: { full_name: name.trim().slice(0, 80) } })
   if (error) throw toDataError(error)

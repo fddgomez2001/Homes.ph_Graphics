@@ -75,15 +75,15 @@ const guardedLookup = ((hostname: string, options: { all?: boolean }, callback: 
   })
 }) as unknown as LookupFunction
 
-/** Checks a URL before any request is made. */
-export function checkRemoteUrl(raw: string | URL): URL {
+/** Checks a URL before any request is made. `noun` names the link in messages ("image link", "link"). */
+export function checkRemoteUrl(raw: string | URL, noun = "image link"): URL {
   let url: URL
   try {
     url = new URL(raw)
   } catch {
-    throw new RemoteImageError("That isn't a valid image link.", 400)
+    throw new RemoteImageError(`That isn't a valid ${noun}.`, 400)
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") throw new RemoteImageError("Only http and https image links can be pasted.", 400)
+  if (url.protocol !== "https:" && url.protocol !== "http:") throw new RemoteImageError(`Only http and https ${noun}s can be used.`, 400)
   if (url.username || url.password) throw new RemoteImageError("Links with a username or password can't be used.", 400)
   if (url.port && url.port !== "80" && url.port !== "443") throw new RemoteImageError("That link uses an unusual port, so it can't be used.", 400)
   const host = url.hostname.replace(/^\[|\]$/g, "")
@@ -93,20 +93,17 @@ export function checkRemoteUrl(raw: string | URL): URL {
   return url
 }
 
-function get(url: URL, signal: AbortSignal): Promise<http.IncomingMessage> {
+/** GET on the public internet only: every DNS answer (also after redirects) is checked. */
+export function guardedGet(url: URL, signal: AbortSignal, headers: Record<string, string>): Promise<http.IncomingMessage> {
   const client = url.protocol === "https:" ? https : http
   return new Promise((resolve, reject) => {
-    const req = client.get(
-      url,
-      {
-        lookup: guardedLookup,
-        signal,
-        headers: { accept: "image/png,image/jpeg,image/webp,image/*;q=0.8", "user-agent": "DailyCarouselMaker/1.0 (image paste)" },
-      },
-      resolve,
-    )
+    const req = client.get(url, { lookup: guardedLookup, signal, headers }, resolve)
     req.on("error", reject)
   })
+}
+
+function get(url: URL, signal: AbortSignal): Promise<http.IncomingMessage> {
+  return guardedGet(url, signal, { accept: "image/png,image/jpeg,image/webp,image/*;q=0.8", "user-agent": "DailyCarouselMaker/1.0 (image paste)" })
 }
 
 /**

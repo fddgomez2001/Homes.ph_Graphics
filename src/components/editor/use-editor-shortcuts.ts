@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { toast } from "sonner"
+import { isPhotoSlot } from "@/lib/design/cover-collage"
 import { loadFont } from "@/lib/design/fonts"
 import { textElement } from "@/lib/design/templates"
 import { CANVAS_SIZE } from "@/lib/design/types"
@@ -71,6 +72,29 @@ export function useEditorShortcuts(store: EditorStore) {
       }
 
       const el = selectedElement()
+      // A cover collage photo slot: Delete empties it, the arrows move the photo inside it, and
+      // it can't be cut or duplicated (the template decides the slots).
+      if (isPhotoSlot(el)) {
+        if (key === "escape") return void s.select(null)
+        if (key === "delete" || key === "backspace") {
+          e.preventDefault()
+          s.updateElement(el.id, { src: null, assetId: null, publicId: null, uploadId: null, slot: { ...el.slot, card: null } }, { history: null })
+          return
+        }
+        if (["arrowleft", "arrowright", "arrowup", "arrowdown"].includes(key)) {
+          e.preventDefault()
+          const d = (e.shiftKey ? 0.1 : 0.02) * (key === "arrowleft" || key === "arrowup" ? -1 : 1)
+          const clamp = (v: number) => Math.min(1, Math.max(0, v))
+          const patch = key === "arrowleft" || key === "arrowright" ? { focusX: clamp(el.focusX + d) } : { focusY: clamp(el.focusY + d) }
+          s.updateElement(el.id, patch, { history: `crop:${el.id}` })
+          return
+        }
+        if (mod && (key === "c" || key === "x" || key === "d")) {
+          e.preventDefault()
+          return
+        }
+        return
+      }
       if (mod && key === "c") {
         if (copySelected()) e.preventDefault()
         return

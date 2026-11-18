@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react"
 import { CheckCircle2, FolderOpen, Loader2, LogOut, MonitorCog, Sparkles, XCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { useCurrentUserEmail, useSignOut } from "@/components/app-shell/user-menu"
@@ -13,9 +14,15 @@ import { Switch } from "@/components/ui/switch"
 import type { CloudinaryStatus } from "@/lib/cloudinary/types"
 import { cloudinaryStatusEvents, getCloudinaryStatus, getIntegrationStatus, type IntegrationStatus } from "@/lib/data/assets"
 import { BackupSection } from "@/components/backup/backup-section"
-import { aiWrite } from "@/lib/ai/client"
+import { aiWrite, getPosterAiConfig, posterAiLabel } from "@/lib/ai/client"
+import { useLocalMode } from "@/lib/local/use-local-mode"
+import { AssignedPagesSection } from "./assigned-pages-section"
+import { ExtensionSection } from "./extension-section"
+import { FoldersSection } from "./folders-section"
+import { PosterAiSection } from "./poster-ai-section"
 import { StorageSection } from "./storage-section"
 import { TeamSection } from "./team-section"
+import { WorkFolderSection } from "./work-folder-section"
 import { checkSchema } from "@/lib/data/projects"
 import { getSettings, saveSettings } from "@/lib/data/settings"
 import {
@@ -26,11 +33,15 @@ import {
   LOGO_BLUE_SRC,
   LOGO_WHITE_SRC,
 } from "@/lib/design/constants"
-import { getDesktop, type DesktopConfigStatus } from "@/lib/desktop"
+import { useDesktop, type DesktopConfigStatus } from "@/lib/desktop"
 import type { UserSettings } from "@/lib/types"
 import { errorMessage } from "@/lib/utils"
 
 export function SettingsForm() {
+  const local = useLocalMode()
+  const desktop = useDesktop()
+  const router = useRouter()
+  const [ownAi, setOwnAi] = useState<string | null>(null)
   const email = useCurrentUserEmail()
   const signOut = useSignOut()
   const [settings, setSettings] = useState<UserSettings | null>(null)
@@ -59,8 +70,12 @@ export function SettingsForm() {
         setFacebook(DEFAULT_FACEBOOK_TEXT)
       })
     getIntegrationStatus(true).then(setStatus)
+    const ai = () => setOwnAi(getPosterAiConfig() ? posterAiLabel() : null)
+    ai()
+    window.addEventListener("dcm-poster-ai", ai)
     getCloudinaryStatus().then(setCloud, () => setCloud(null))
     checkSchema(true).then(setSchema, () => setSchema("error"))
+    return () => window.removeEventListener("dcm-poster-ai", ai)
   }, [])
 
   // Follow re-checks made from the Image storage card.
@@ -93,6 +108,8 @@ export function SettingsForm() {
     <>
       <PageHeader title="Settings" />
       <div className="flex max-w-3xl flex-col gap-6 p-4 lg:p-6">
+        <AssignedPagesSection />
+
         <section className="rounded-xl border bg-card p-5">
           <h2 className="font-semibold">Brand</h2>
           <p className="mb-4 text-sm text-muted-foreground">
@@ -162,7 +179,15 @@ export function SettingsForm() {
           </div>
         </section>
 
+        <WorkFolderSection />
+
         <StorageSection />
+
+        <FoldersSection />
+
+        <ExtensionSection />
+
+        <PosterAiSection />
 
         <TeamSection />
 
@@ -173,6 +198,9 @@ export function SettingsForm() {
         <section className="rounded-xl border bg-card p-5">
           <h2 className="mb-3 font-semibold">Connections</h2>
           <ul className="flex flex-col gap-2 text-sm">
+            {local ? (
+              <StatusRow ok loading={false} label="Saved on this computer" detail="No account: projects, slides and settings are saved in your work folder (see Where your work is saved)." />
+            ) : (
             <StatusRow
               ok={status?.supabase && schema === "ok"}
               loading={!status || !schema}
@@ -185,6 +213,8 @@ export function SettingsForm() {
                     : "Projects, slides and settings are saved here."
               }
             />
+            )}
+            {!(local && status?.localPhotos) && (
             <StatusRow
               ok={cloud?.configured === true && (cloud.ok || cloud.reason === "permission")}
               loading={!status || (status.cloudinary && !cloud)}
@@ -197,18 +227,38 @@ export function SettingsForm() {
                     : "Original images are stored here."
               }
             />
+            )}
             <StatusRow
-              ok={status?.ai}
+              ok={!!ownAi || status?.ai}
               loading={!status}
-              label="Groq AI suggestions"
-              detail={status?.ai ? "Writes card descriptions, cover subtitles and post captions on request." : "Add GROQ_API_KEY to turn on the AI suggestions."}
+              label="AI"
+              detail={
+                ownAi
+                  ? `Your own key: ${ownAi}. Writes headlines, captions, carousel text and searches trending news (Settings → AI above).`
+                  : status?.ai
+                    ? "The app's built-in Groq writes the suggestions. To use your own AI, add a key in Settings → AI above."
+                    : desktop
+                      ? "Not set up yet: this app uses AI. Connect your own AI (Groq is free) in Settings → AI above."
+                      : "Add GROQ_API_KEY to turn on the AI suggestions."
+              }
             />
           </ul>
-          {status?.ai && <AiTest />}
+          {(status?.ai || ownAi) && <AiTest />}
         </section>
 
         <section className="rounded-xl border bg-card p-5">
           <h2 className="mb-3 font-semibold">Account</h2>
+          {local ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <div className="font-medium">No account</div>
+                <div className="text-muted-foreground">You use the app on this computer only. A team account shares carousels with teammates.</div>
+              </div>
+              <Button variant="outline" onClick={() => router.push("/welcome")}>
+                Use a team account…
+              </Button>
+            </div>
+          ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm">
               <div className="text-muted-foreground">Signed in as</div>
@@ -218,6 +268,7 @@ export function SettingsForm() {
               <LogOut /> Sign out
             </Button>
           </div>
+          )}
         </section>
       </div>
     </>
@@ -226,7 +277,8 @@ export function SettingsForm() {
 
 /** Only in the Windows app: Cloudinary details are stored on this computer, never sent to the browser. */
 function DesktopConnection() {
-  const [desktop] = useState(getDesktop)
+  const desktop = useDesktop()
+  const local = useLocalMode()
   const [config, setConfig] = useState<DesktopConfigStatus | null>(null)
   const [cloudName, setCloudName] = useState("")
   const [apiKey, setApiKey] = useState("")
@@ -241,7 +293,8 @@ function DesktopConnection() {
     })
   }, [desktop])
 
-  if (!desktop) return null
+  // Without an account, the welcome setup (Where your work is saved) has the Cloudinary choice.
+  if (!desktop || local) return null
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
@@ -266,7 +319,8 @@ function DesktopConnection() {
         <MonitorCog className="size-4" /> Desktop app connection
       </h2>
       <p className="mb-4 text-sm text-muted-foreground">
-        Cloudinary details for image uploads and the Groq key for AI suggestions, stored only on this computer. Leave a key or secret empty to keep the saved one.
+        Cloudinary details for image uploads{config?.hasGroqKey ? " and the app's Groq key" : ""}, stored only on this computer. Leave a key or secret empty to keep the saved one. Your own
+        AI key is in Settings → AI.
       </p>
       <form onSubmit={save} className="flex flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-3">
@@ -290,6 +344,7 @@ function DesktopConnection() {
             />
           </div>
         </div>
+        {config?.hasGroqKey && (
         <div className="flex flex-col gap-1.5 sm:max-w-sm">
           <Label htmlFor="d-groq">Groq API key (AI suggestions) {config?.hasGroqKey && <span className="font-normal text-emerald-700 dark:text-emerald-300">· saved</span>}</Label>
           <Input
@@ -301,6 +356,7 @@ function DesktopConnection() {
             autoComplete="off"
           />
         </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <Button type="submit" disabled={busy}>
             {busy && <Loader2 className="animate-spin" />} Save and restart

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { BUILT_IN_TEMPLATES, buildCardDesign } from "@/lib/design/templates"
+import { BUILT_IN_TEMPLATES, buildCardDesign, carouselBrandOf, carouselBrandOfSlides, isContentCard } from "@/lib/design/templates"
 import type { EditorSlide } from "@/lib/design/types"
 import { cn } from "@/lib/utils"
 import {
@@ -62,9 +62,11 @@ export function SlidesPanel() {
     else setPending(drop)
   }
 
+  // New cards follow the carousel's brand (Homes.ph, FHI Global Property or PicklePlay).
+  const brand = carouselBrandOfSlides(slides.map((sl) => sl.design))
   const addCard = (templateId?: string) => {
     const template = BUILT_IN_TEMPLATES.find((t) => t.id === templateId)
-    store.getState().addSlide(template ? template.build(templateContext) : buildCardDesign())
+    store.getState().addSlide(template ? template.build(templateContext) : buildCardDesign(brand))
   }
 
   return (
@@ -97,7 +99,7 @@ export function SlidesPanel() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-60">
-            {BUILT_IN_TEMPLATES.filter((t) => t.slideType === "card").map((t) => (
+            {BUILT_IN_TEMPLATES.filter((t) => t.slideType === "card" && (!isContentCard(t.id) || carouselBrandOf(t.id) === brand)).map((t) => (
               <DropdownMenuItem key={t.id} onSelect={() => addCard(t.id)}>
                 {t.name}
               </DropdownMenuItem>

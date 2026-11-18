@@ -15,7 +15,7 @@ export default function LoginPage() {
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <BrandMark className="size-12" />
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">{IS_WEBSITE ? "Homes.ph Carousels" : "Daily Carousel Maker"}</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{IS_WEBSITE ? "Homes.ph Carousels" : "Homes.ph SocMedSystem"}</h1>
             <p className="text-sm text-muted-foreground">{IS_WEBSITE ? "Sign in to see the carousels ready to post" : "Homes.ph social media carousels"}</p>
           </div>
         </div>

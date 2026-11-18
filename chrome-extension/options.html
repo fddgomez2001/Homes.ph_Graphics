@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Homes.ph Publisher · Options</title>
+    <style>
+      :root { color-scheme: light; --blue: #1428ae; --line: #e2e8f0; --muted: #64748b; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; color: #0f172a; background: #f8fafc; }
+      main { max-width: 880px; margin: 0 auto; padding: 28px 20px 60px; }
+      h1 { font-size: 22px; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+      h1 img { width: 34px; height: 34px; }
+      h2 { font-size: 15px; margin: 0 0 10px; }
+      p.lead { margin: 0 0 22px; color: var(--muted); }
+      section { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; }
+      label.row { display: flex; gap: 10px; align-items: flex-start; margin: 8px 0; }
+      label.row input[type=checkbox] { margin-top: 3px; width: 16px; height: 16px; }
+      .hint { color: var(--muted); font-size: 12px; }
+      input[type=text], input[type=url], input[type=number] { width: 100%; font: inherit; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; }
+      input:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
+      .grid { display: grid; grid-template-columns: 150px 1fr; gap: 8px 12px; align-items: center; }
+      .brand { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+      .brand:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+      .brand h3 { margin: 0 0 10px; font-size: 14px; display: flex; gap: 8px; align-items: center; }
+      .brand h3 img { width: 26px; height: 26px; object-fit: contain; }
+      button { font: 600 13px "Segoe UI", sans-serif; padding: 8px 14px; border-radius: 9px; border: 1px solid var(--blue); background: var(--blue); color: #fff; cursor: pointer; }
+      button.ghost { background: #fff; color: var(--blue); }
+      button:disabled { opacity: .55; cursor: default; }
+      .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      .status { font-size: 13px; }
+      .ok { color: #047857; } .bad { color: #b91c1c; }
+      footer { position: sticky; bottom: 0; background: linear-gradient(transparent, #f8fafc 30%); padding: 14px 0 4px; }
+      ol { margin: 6px 0 0 18px; padding: 0; } li { margin: 3px 0; }
+      @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1><img src="icon-48.png" alt="" /> Homes.ph Publisher</h1>
+      <p class="lead">One click on a time publishes the article on the dash.homes.ph board (Clear all, then only the page's sites) and sends its Facebook post with the News Article picture from Homes.ph SocMedSystem. The panel shows only the pages assigned to you in the app (Settings → Assigned pages).</p>
+
+      <section>
+        <h2>Homes.ph SocMedSystem</h2>
+        <div class="bar">
+          <span class="status" id="app-status">Checking…</span>
+          <span style="flex:1"></span>
+          <button id="app-connect">Connect</button>
+          <button id="app-disconnect" class="ghost">Disconnect</button>
+        </div>
+        <p class="hint" id="assigned"></p>
+        <p class="hint">Homes.ph SocMedSystem (Daily Carousel Maker before 1.50) must be open on this computer. Connect once: the app asks you to allow it. Then each article you publish here is also added to News Article (headline, photo, posting time), its template is saved in your download folder and attached to the Facebook post.</p>
+      </section>
+
+      <section>
+        <h2>How it works</h2>
+        <label class="row"><input type="checkbox" id="showEverywhere" /> <span>Show the floating button on every website <span class="hint">(off: only on dash.homes.ph and homes.ph)</span></span></label>
+        <label class="row"><input type="checkbox" id="autoPublish" /> <span>Click <b>Publish</b> on the article by itself, after the countdown <span class="hint">(off: its sites are ticked and you click Publish; an article published already is never published again)</span></span></label>
+        <label class="row"><input type="checkbox" id="autoPost" /> <span>Click <b>Post now</b> in the dash's <b>Send to Facebook</b> by itself, after the countdown <span class="hint">(off: the picture, Pages and caption are ready, you click Post now; then the card gets its check)</span></span></label>
+        <label class="row"><input type="checkbox" id="postWay" /> <span>Use the old way: the article's own page, then homes.ph <b>Facebook Autopost</b> <span class="hint">(off, from 1.2.0: everything on the dash board: Publish, Send to Facebook, Post now)</span></span></label>
+        <label class="row"><input type="checkbox" id="autoSchedule" /> <span>Click <b>Schedule Post</b> on Facebook Autopost by itself <span class="hint">(off, the team's way: everything is filled in, you check it and click; then you go back to the board and the card gets its check)</span></span></label>
+        <div class="grid" style="margin-top:10px">
+          <label for="countdown">Countdown (seconds)</label>
+          <input type="number" id="countdown" min="0" max="30" />
+          <label for="nowWindow">Post now when</label>
+          <div><input type="number" id="nowWindow" min="0" max="60" style="width:90px" /> <span class="hint">minutes or less before the slot's time (or past it): the Facebook post goes out right away instead of being scheduled.</span></div>
+          <label for="siteUrl">Sites board</label>
+          <input type="url" id="siteUrl" />
+          <label for="cityUrl">Cities board</label>
+          <input type="url" id="cityUrl" />
+        </div>
+      </section>
+
+      <section>
+        <h2>Pages</h2>
+        <p class="hint" style="margin-top:-4px">Every page that can be assigned (yours are marked). Target Hub = the row's name on the board. Publish to = the only sites ticked after Clear all (Main News Portal always; a Homes.ph page: Homes; FHI: fhiglobal and Rentsouq). Facebook Page = the only Page ticked in Schedule Post. Article address = where the article is on the brand's website (the READ MORE link).</p>
+        <div id="brands"></div>
+      </section>
+
+      <section>
+        <h2>Carousels</h2>
+        <p class="hint" style="margin-top:-4px">Only when the carousel is assigned to you. <b>Post</b> opens the Sites board's <b>Create Post</b> (Send to Facebook): the slides (1.png = the cover), under Others every city picked at 11:00 PM on its day, every Homes.ph Page ticked (Main Page = "Homes.ph"), the caption from the app, then Post now. Old way (above): the checklist's Facebook pages in posts of 4 on Facebook Autopost; <b>Post</b> fills in Schedule Post: those Pages ticked (Main Page = the Page "Homes.ph", ID 253657525049795; a city = the Homes.ph Page with its name), the carousel's caption, its slides in order (1.png = the cover, also saved in your download folder), 11:00 PM on its day. You click Schedule Post; then the Pages are ticked on the app's checklist and turn green here.</p>
+        <label for="carouselPages" style="font-weight:600;font-size:13px">Carousel pages with another Facebook name <span class="hint">(one per line: checklist name = Facebook Page name)</span></label>
+        <textarea id="carouselPages" rows="4" placeholder="Ozamiz = Homes.ph Ozamiz City&#10;CDO = Homes.ph Cagayan de Oro" style="width:100%;font:inherit;padding:7px 10px;border:1px solid #cbd5e1;border-radius:9px;margin-top:6px"></textarea>
+      </section>
+
+      <footer class="bar">
+        <button id="save">Save</button>
+        <button id="reset" class="ghost">Back to the defaults</button>
+        <span class="status" id="saved"></span>
+      </footer>
+    </main>
+    <script src="shared.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

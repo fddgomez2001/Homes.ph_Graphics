@@ -3,9 +3,13 @@
 import { invalidate, updateCachedLists } from "@/lib/cache"
 import type { SlideDesign } from "@/lib/design/types"
 import { SUPABASE_URL } from "@/lib/env"
+import { localApi } from "@/lib/local/client"
+import { isLocalMode } from "@/lib/local/shared"
 import { getSupabase } from "@/lib/supabase/client"
 import type { ProjectRow, ProjectStatus, SlideRow } from "@/lib/types"
 import { DataError, toDataError } from "./errors"
+
+// The desktop app without an account saves on this computer (/api/local); otherwise the cloud database.
 
 const BASE_COLUMNS = "id,user_id,title,topic,caption,scheduled_at,status,archived_at,thumbnail,slide_count,revision,created_at,updated_at"
 
@@ -25,6 +29,8 @@ let featuresPromise: Promise<ProjectFeatures> | null = null
 
 /** Which optional columns exist. Without the newer migration the app keeps working (no Trash / News). */
 export function projectFeatures(): Promise<ProjectFeatures> {
+  // Saved on this computer: everything is there.
+  if (isLocalMode()) return Promise.resolve({ trash: true, news: true, posted: true, posting: true })
   if (!featuresPromise) {
     const has = async (cols: string) => {
       const { error } = await getSupabase().from("carousel_projects").select(cols).limit(1)
@@ -77,6 +83,10 @@ function cleanSearch(term: string) {
 }
 
 export async function listProjects(q: ProjectQuery = {}): Promise<ProjectRow[]> {
+  if (isLocalMode()) {
+    const query = { ...q, from: q.from ? new Date(q.from).toISOString() : undefined, to: q.to ? new Date(q.to).toISOString() : undefined }
+    return localApi<ProjectRow[]>("GET", "projects", undefined, { q: JSON.stringify(query) })
+  }
   const features = await projectFeatures().catch(() => NO_FEATURES)
   if (!features.trash && (q.trash === "only" || q.kind === "news")) return []
   let query = getSupabase().from("carousel_projects").select(columnsFor(features))
@@ -101,6 +111,7 @@ export async function listProjects(q: ProjectQuery = {}): Promise<ProjectRow[]> 
 }
 
 export async function getProject(id: string): Promise<ProjectRow> {
+  if (isLocalMode()) return localApi<ProjectRow>("GET", `projects/${encodeURIComponent(id)}`)
   const { data, error } = await getSupabase().from("carousel_projects").select(await columns()).eq("id", id).maybeSingle()
   if (error) throw toDataError(error)
   if (!data) throw new DataError("This carousel doesn't exist or you don't have access to it.", "not_found", 404)
@@ -108,6 +119,7 @@ export async function getProject(id: string): Promise<ProjectRow> {
 }
 
 export async function getProjectSlides(projectId: string): Promise<SlideRow[]> {
+  if (isLocalMode()) return localApi<SlideRow[]>("POST", "slides", { projectIds: [projectId] })
   const { data, error } = await getSupabase()
     .from("carousel_slides")
     .select("*")
@@ -120,6 +132,7 @@ export async function getProjectSlides(projectId: string): Promise<SlideRow[]> {
 /** Slides of several projects at once (the Day Board), ordered per project. */
 export async function listSlidesForProjects(projectIds: string[]): Promise<SlideRow[]> {
   if (!projectIds.length) return []
+  if (isLocalMode()) return localApi<SlideRow[]>("POST", "slides", { projectIds })
   const { data, error } = await getSupabase()
     .from("carousel_slides")
     .select("*")
@@ -127,6 +140,52 @@ export async function listSlidesForProjects(projectIds: string[]): Promise<Slide
     .order("slide_order", { ascending: true })
   if (error) throw toDataError(error)
   return (data ?? []) as SlideRow[]
+}
+
+/**
+ * Just the saved titles of several projects' slides (no designs): what earlier carousels featured,
+ * for spotting repeated topics and places.
+ */
+export async function listSlideTitles(projectIds: string[]): Promise<Pick<SlideRow, "project_id" | "slide_order" | "title" | "description">[]> {
+  const rows: Pick<SlideRow, "project_id" | "slide_order" | "title" | "description">[] = []
+  if (isLocalMode()) {
+    if (!projectIds.length) return []
+    const slides = await localApi<SlideRow[]>("POST", "slides", { projectIds })
+    return slides.map(({ project_id, slide_order, title, description }) => ({ project_id, slide_order, title, description }))
+  }
+  for (let i = 0; i < projectIds.length; i += 80) {
+    const { data, error } = await getSupabase()
+      .from("carousel_slides")
+      .select("project_id,slide_order,title,description")
+      .in("project_id", projectIds.slice(i, i + 80))
+    if (error) throw toDataError(error)
+    rows.push(...((data ?? []) as typeof rows))
+  }
+  return rows
+}
+
+/**
+ * Each carousel's cover template id (no designs downloaded): which brand the carousel is
+ * (Homes.ph, FHI Global Property or PicklePlay). Carousels without a cover are left out.
+ */
+export async function listCoverTemplates(projectIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  if (isLocalMode()) {
+    if (!projectIds.length) return out
+    return new Map(Object.entries(await localApi<Record<string, string>>("POST", "covers", { projectIds })))
+  }
+  for (let i = 0; i < projectIds.length; i += 80) {
+    const { data, error } = await getSupabase()
+      .from("carousel_slides")
+      .select("project_id,template:design_json->>templateId")
+      .eq("slide_order", 0)
+      .in("project_id", projectIds.slice(i, i + 80))
+    if (error) throw toDataError(error)
+    for (const row of (data ?? []) as { project_id: string; template?: string | null; design_json?: { templateId?: string } }[]) {
+      out.set(row.project_id, row.template ?? row.design_json?.templateId ?? "")
+    }
+  }
+  return out
 }
 
 export interface NewProjectInput {
@@ -139,6 +198,11 @@ export interface NewProjectInput {
 
 /** Creates the project and its cover slide atomically. Returns the new project id. */
 export async function createProject(input: NewProjectInput, coverDesign: SlideDesign): Promise<string> {
+  if (isLocalMode()) {
+    const { id } = await localApi<{ id: string }>("POST", "projects", { input, cover: coverDesign })
+    changed()
+    return id
+  }
   const { data, error } = await getSupabase().rpc("create_carousel_project", {
     p_title: input.title,
     p_topic: input.topic ?? null,
@@ -160,6 +224,11 @@ function changed() {
 export type ProjectPatch = Partial<Pick<ProjectRow, "title" | "topic" | "caption" | "scheduled_at" | "status" | "archived_at" | "deleted_at" | "kind" | "posted_at">>
 
 export async function updateProject(id: string, patch: ProjectPatch): Promise<ProjectRow> {
+  if (isLocalMode()) {
+    const row = await localApi<ProjectRow>("PATCH", `projects/${encodeURIComponent(id)}`, { patch })
+    changed()
+    return row
+  }
   const { data, error } = await getSupabase().from("carousel_projects").update(patch).eq("id", id).select(await columns()).single()
   if (error) throw toDataError(error)
   changed()
@@ -167,6 +236,11 @@ export async function updateProject(id: string, patch: ProjectPatch): Promise<Pr
 }
 
 export async function duplicateProject(id: string): Promise<string> {
+  if (isLocalMode()) {
+    const { id: copy } = await localApi<{ id: string }>("POST", `projects/${encodeURIComponent(id)}/duplicate`, {})
+    changed()
+    return copy
+  }
   const { data, error } = await getSupabase().rpc("duplicate_carousel_project", { p_project_id: id })
   if (error) throw toDataError(error)
   changed()
@@ -189,6 +263,12 @@ export async function markNotPosted(project: Pick<ProjectRow, "id" | "scheduled_
 
 /** Deletes a carousel and its slides for good. */
 export async function deleteProject(id: string): Promise<void> {
+  if (isLocalMode()) {
+    await localApi("DELETE", `projects/${encodeURIComponent(id)}`)
+    removeFromLists(id)
+    changed()
+    return
+  }
   const { error } = await getSupabase().from("carousel_projects").delete().eq("id", id)
   if (error) throw toDataError(error)
   removeFromLists(id)
@@ -210,6 +290,12 @@ export async function trashProject(id: string): Promise<boolean> {
     await deleteProject(id)
     return false
   }
+  if (isLocalMode()) {
+    await localApi("PATCH", `projects/${encodeURIComponent(id)}`, { patch: { deleted_at: new Date().toISOString() } })
+    removeFromLists(id)
+    changed()
+    return true
+  }
   const { error } = await getSupabase().from("carousel_projects").update({ deleted_at: new Date().toISOString() }).eq("id", id)
   if (error) throw toDataError(error)
   removeFromLists(id)
@@ -218,6 +304,12 @@ export async function trashProject(id: string): Promise<boolean> {
 }
 
 export async function restoreProject(id: string): Promise<void> {
+  if (isLocalMode()) {
+    await localApi("PATCH", `projects/${encodeURIComponent(id)}`, { patch: { deleted_at: null } })
+    removeFromLists(id)
+    changed()
+    return
+  }
   const { error } = await getSupabase().from("carousel_projects").update({ deleted_at: null }).eq("id", id)
   if (error) throw toDataError(error)
   removeFromLists(id)
@@ -231,6 +323,11 @@ export async function purgeOldTrash(): Promise<number> {
   const features = await projectFeatures().catch(() => NO_FEATURES)
   if (!features.trash) return 0
   const cutoff = new Date(Date.now() - TRASH_DAYS * 86_400_000).toISOString()
+  if (isLocalMode()) {
+    const { count } = await localApi<{ count: number }>("POST", "trash/purge", { cutoff })
+    if (count) changed()
+    return count
+  }
   const { data, error } = await getSupabase().from("carousel_projects").delete().lt("deleted_at", cutoff).select("id")
   if (error) throw toDataError(error)
   if (data?.length) changed()
@@ -250,6 +347,19 @@ export interface SaveSlidePayload {
   design_json: SlideDesign
 }
 
+/** Every finished save (the editor's, the Poster Maker's…): which project, and its new revision. */
+const projectSaves = typeof EventTarget === "function" ? new EventTarget() : null
+
+/** Calls `fn` after each save of any project in this window. Returns the way to stop. */
+export function onProjectSaved(fn: (saved: { id: string; revision: number }) => void): () => void {
+  if (!projectSaves) return () => {}
+  const listener = (e: Event) => fn((e as CustomEvent<{ id: string; revision: number }>).detail)
+  projectSaves.addEventListener("saved", listener)
+  return () => projectSaves.removeEventListener("saved", listener)
+}
+
+const announceSave = (id: string, revision: number) => projectSaves?.dispatchEvent(new CustomEvent("saved", { detail: { id, revision } }))
+
 /**
  * Atomic save of metadata + ordered slides. Throws ConflictError when another
  * save happened in between (the expected revision is stale).
@@ -260,6 +370,16 @@ export async function saveProject(args: {
   project: Record<string, unknown>
   slides: SaveSlidePayload[]
 }): Promise<{ revision: number; updated_at: string }> {
+  if (isLocalMode()) {
+    const row = await localApi<{ revision: number; updated_at: string }>("POST", `projects/${encodeURIComponent(args.projectId)}/save`, {
+      expectedRevision: args.expectedRevision,
+      project: args.project,
+      slides: args.slides,
+    })
+    changed()
+    announceSave(args.projectId, row.revision)
+    return row
+  }
   const { data, error } = await getSupabase().rpc("save_carousel_project", {
     p_project_id: args.projectId,
     p_expected_revision: args.expectedRevision,
@@ -270,6 +390,7 @@ export async function saveProject(args: {
   const row = (Array.isArray(data) ? data[0] : data) as { revision: number; updated_at: string } | undefined
   if (!row) throw new DataError("The save did not return a revision.")
   changed()
+  announceSave(args.projectId, row.revision)
   return row
 }
 
@@ -277,6 +398,7 @@ const SCHEMA_OK_KEY = "dcm-schema-ok"
 
 /** "ok" when the tables exist, "missing" when the migration hasn't been run. Remembered once confirmed. */
 export async function checkSchema(force = false): Promise<"ok" | "missing"> {
+  if (isLocalMode()) return "ok"
   try {
     if (!force && localStorage.getItem(SCHEMA_OK_KEY) === SUPABASE_URL) return "ok"
   } catch {

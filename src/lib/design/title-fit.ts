@@ -17,7 +17,10 @@ const MIN_SIZE = 8
 function sized(el: TextElement, size: number): TextElement {
   const em = el.autoFit?.letterSpacingEm ?? 0
   const lineHeight = Math.round(size * (el.autoFit?.lineHeightRatio ?? 1) * 100) / 100
-  return { ...el, fontSize: size, lineHeight, letterSpacing: Math.round(em * size * 100) / 100 }
+  const anchor = el.autoFit?.anchor
+  // A line pinned to its baseline: its top moves down as it shrinks.
+  const y = anchor ? Math.round((anchor.baseline - anchor.ratio * size) * 100) / 100 : el.y
+  return { ...el, y, fontSize: size, lineHeight, letterSpacing: Math.round(em * size * 100) / 100 }
 }
 
 /** Same steps as the plugin's fitSize(): exact check at max size, proportional guess, then step down. */
@@ -55,7 +58,7 @@ export function applyTitleFit(design: SlideDesign, measure: MeasureLine): SlideD
     const size = sizes.get(el.id)
     if (size === undefined || el.type !== "text") return el
     const next = sized(el, size)
-    if (next.fontSize === el.fontSize && next.lineHeight === el.lineHeight && next.letterSpacing === el.letterSpacing) return el
+    if (next.fontSize === el.fontSize && next.lineHeight === el.lineHeight && next.letterSpacing === el.letterSpacing && next.y === el.y) return el
     changed = true
     return next
   })

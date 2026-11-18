@@ -1,12 +1,18 @@
 "use client"
 
-import { CheckCircle2, Crop, ImageUp, RotateCcw, Trash, TriangleAlert, Wallpaper } from "lucide-react"
+import { useRef, useState } from "react"
+import { CheckCircle2, Crop, ImageUp, Loader2, RotateCcw, Scissors, Sparkles, Sun, Trash, TriangleAlert, Wallpaper, WandSparkles, X } from "lucide-react"
+import { toast } from "sonner"
+import { loadImage } from "@/lib/design/image-cache"
+import { autoLightColor, removeBackground, removePlainBackground, ToolCancelled } from "@/lib/image-tools"
+import { canEnhancePhoto, EnhanceCancelled, enhancePhoto, imageToBlob } from "@/lib/photo-enhance"
+import { errorMessage } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { imageUpscaleFactor } from "@/lib/design/geometry"
 import { logoSource } from "@/lib/design/logo"
 import type { ImageElement } from "@/lib/design/types"
-import { CANVAS_SIZE } from "@/lib/design/types"
+import { CANVAS_SIZE, MIN_FRAME_ZOOM } from "@/lib/design/types"
 import { Section, SliderField } from "../fields"
 import { importImageFiles, slideBackground } from "../image-import"
 import { useCurrentSlide, useEditor, useEditorStore } from "../store"
@@ -23,6 +29,7 @@ export function ImageProperties({ el }: { el: ImageElement }) {
 
   return (
     <>
+      {el.src && <PictureTools el={el} />}
       {el.role === "logo" && (
         <Section title="Logo color">
           {el.logoVariant ? (
@@ -106,7 +113,8 @@ export function ImageProperties({ el }: { el: ImageElement }) {
               <SliderField
                 label="Zoom"
                 value={el.zoom}
-                min={1}
+                // A poster photo can zoom out over its blurred copy.
+                min={el.blurFill ? MIN_FRAME_ZOOM : 1}
                 max={5}
                 step={0.01}
                 onChange={(zoom) => update({ zoom }, `zoom:${el.id}`)}
@@ -228,5 +236,105 @@ function ImageInfo({ el, upload }: { el: ImageElement; upload?: { status: string
       )}
       {!upload && el.assetId && <div className="text-muted-foreground">Stored in your image library.</div>}
     </div>
+  )
+}
+
+type Tool = "person" | "plain" | "enhance" | "auto"
+
+/**
+ * Picture tools (1.53), on this computer: cut the people out (with their hair) or a plain background (logos),
+ * enhance (AI: sharper and bigger) and auto light & color. Each gives a new picture in the same place (Ctrl+Z
+ * puts the old one back).
+ */
+function PictureTools({ el }: { el: ImageElement }) {
+  const store = useEditorStore()
+  const slide = useCurrentSlide()
+  const [work, setWork] = useState<{ tool: Tool; label: string; progress: number } | null>(null)
+  const abort = useRef<AbortController | null>(null)
+
+  const run = async (tool: Tool) => {
+    if (!el.src || work) return
+    const ctrl = new AbortController()
+    abort.current = ctrl
+    setWork({ tool, label: "Starting…", progress: 0 })
+    const progress = (fraction: number, label?: string) => setWork((w) => (w ? { ...w, progress: fraction, label: label ?? w.label } : w))
+    try {
+      const img = await loadImage(el.src)
+      const source = await imageToBlob(img)
+      let out: Blob | null = null
+      let what = ""
+      if (tool === "person") {
+        out = (await removeBackground(source, { onProgress: progress, signal: ctrl.signal })).blob
+        what = "cut out"
+      } else if (tool === "plain") {
+        progress(0.5, "Clearing the background…")
+        out = await removePlainBackground(source)
+        if (!out) {
+          toast.info("The background isn't one plain color", { description: "For photos of people, use Remove background (people)." })
+          return
+        }
+        what = "no background"
+      } else if (tool === "enhance") {
+        if (canEnhancePhoto(img.naturalWidth, img.naturalHeight)) {
+          const r = await enhancePhoto(source, { onProgress: (f) => progress(f, "Enhancing (AI)…"), signal: ctrl.signal })
+          out = r.blob
+          what = "enhanced"
+          // Then its light and color.
+          progress(0.95, "Light & color…")
+          out = await autoLightColor(out)
+        } else {
+          // Big pictures are sharp enough: their light and color are fixed.
+          progress(0.5, "Light & color…")
+          out = await autoLightColor(source)
+          what = "light & color"
+        }
+      } else {
+        progress(0.5, "Light & color…")
+        out = await autoLightColor(source)
+        what = "light & color"
+      }
+      if (ctrl.signal.aborted) return
+      const keep = { zoom: el.zoom, focusX: el.focusX, focusY: el.focusY, fit: el.fit }
+      const ext = out.type === "image/png" ? "png" : "jpg"
+      await importImageFiles(store, [new File([out], `${el.name} (${what}).${ext}`, { type: out.type })], { mode: "replace", slideId: slide.id, elementId: el.id })
+      store.getState().updateElement(el.id, keep, { history: false })
+      toast.success(tool === "person" ? "Background removed" : tool === "plain" ? "Plain background removed" : "Picture enhanced", { description: "Ctrl+Z brings the old picture back." })
+    } catch (e) {
+      if (e instanceof ToolCancelled || e instanceof EnhanceCancelled || ctrl.signal.aborted) return
+      toast.error("Couldn't change the picture", { description: errorMessage(e) })
+    } finally {
+      if (abort.current === ctrl) abort.current = null
+      setWork(null)
+    }
+  }
+
+  const button = (tool: Tool, Icon: typeof Scissors, label: string, title: string) => (
+    <Button variant="outline" size="sm" className="justify-start" disabled={!!work} onClick={() => void run(tool)} title={title}>
+      {work?.tool === tool ? <Loader2 className="animate-spin" /> : <Icon />} {label}
+    </Button>
+  )
+
+  return (
+    <Section title="Picture tools">
+      <div className="grid grid-cols-2 gap-1.5">
+        {button("person", Scissors, "Remove background", "AI: cuts the people out with their hair (about 10–30 s)")}
+        {button("plain", Wallpaper, "Plain background", "Logos and graphics on one plain color: that color goes")}
+        {button("enhance", WandSparkles, "Enhance (AI)", "Sharper and up to 4× bigger (small pictures), with better light and color")}
+        {button("auto", Sun, "Light & color", "Brighter, clearer colors and a little sharper")}
+      </div>
+      {work ? (
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground" role="status">
+          <Sparkles className="size-3.5 shrink-0" />
+          <span className="flex-1">
+            {work.label} {Math.round(work.progress * 100)}%
+          </span>
+          <Button variant="ghost" size="icon-xs" aria-label="Stop" onClick={() => abort.current?.abort()}>
+            <X />
+          </Button>
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">Runs on this computer. Remove background is made for people (hair too); then put the cut-out between the template&apos;s layers.</p>
+      )}
+    </Section>
   )
 }

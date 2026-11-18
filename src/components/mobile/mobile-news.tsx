@@ -9,14 +9,14 @@ import { useExport } from "@/components/export/export-provider"
 import { useProjects } from "@/components/projects/use-projects"
 import { reportDay } from "@/components/report/daily-report-page"
 import { Button } from "@/components/ui/button"
-import { NEWS_BRANDS, newsBrandOf, newsFileName, newsTimesFor } from "@/lib/design/news-templates"
+import { isPosterTemplate, NEWS_BRANDS, newsBrandOf, newsFileName, newsTimesFor } from "@/lib/design/news-templates"
 import { NEWS_HEADLINE_PLACEHOLDER } from "@/lib/design/templates"
 import type { ProjectRow } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const ymd = (d: Date) => format(d, "yyyy-MM-dd")
 
-/** The day's news posts (PicklePlay PH, FHI Global Property and Homes.ph CARAGA, five a day each), ready to save or share. */
+/** The day's news posts (PicklePlay PH, FHI Global Property, Homes.ph CARAGA and Homes.ph Gensan, five a day each), ready to save or share. */
 export function MobileNews() {
   const params = useSearchParams()
   const day = reportDay(params.get("newsDay"))
@@ -36,7 +36,8 @@ export function MobileNews() {
     const slots = new Map<string, ProjectRow>()
     for (const p of projects) {
       const design = slides.get(p.id)?.[0]?.design
-      if (!design || !p.scheduled_at) continue
+      // Posters belong to the Poster Maker, not to the News tab.
+      if (!design || !p.scheduled_at || isPosterTemplate(design.templateId)) continue
       const key = `${newsBrandOf(design)}@${format(new Date(p.scheduled_at), "HH:mm")}`
       if (!slots.has(key)) slots.set(key, p)
     }

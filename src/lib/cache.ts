@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { isLocalMode } from "@/lib/local/shared"
 import { getSupabase } from "@/lib/supabase/client"
 import { isSupabaseConfigured } from "@/lib/env"
 
@@ -36,6 +37,8 @@ function scope(): Promise<string> {
   if (!scopePromise) {
     scopePromise = (async () => {
       if (!isSupabaseConfigured()) return "anon"
+      // Saved on this computer: one person, no account.
+      if (isLocalMode()) return "local"
       const auth = getSupabase().auth
       if (!watching) {
         watching = true
@@ -267,10 +270,16 @@ export function useCachedQuery<T>(key: string | null, fetcher: () => Promise<T>,
       last = Date.now()
       refresh()
     }
+    // Another window of the app changed it (the main window ticks a page: the floating checklist shows it at once).
+    const onStorage = (e: StorageEvent) => {
+      if (e.key?.startsWith(INVALIDATED) && key.startsWith(e.key.slice(INVALIDATED.length))) refresh()
+    }
     cacheEvents.addEventListener("invalidate", onInvalidate)
     document.addEventListener("visibilitychange", onVisible)
     window.addEventListener("focus", onVisible)
+    window.addEventListener("storage", onStorage)
     return () => {
+      window.removeEventListener("storage", onStorage)
       cacheEvents.removeEventListener("invalidate", onInvalidate)
       document.removeEventListener("visibilitychange", onVisible)
       window.removeEventListener("focus", onVisible)

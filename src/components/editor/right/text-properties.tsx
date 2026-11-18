@@ -16,6 +16,8 @@ import { useCurrentSlide, useEditor, useEditorStore } from "../store"
 import { DescriptionHint } from "../description-hint"
 import { SlideTextAi } from "../slide-text-ai"
 import { FillEditor } from "./shape-properties"
+import { HighlightField } from "@/components/posters/highlight-field"
+import { isContentCard } from "@/lib/design/templates"
 
 export function TextProperties({ el }: { el: TextElement }) {
   const store = useEditorStore()
@@ -62,7 +64,7 @@ export function TextProperties({ el }: { el: TextElement }) {
             </div>
           </div>
         ))}
-        {el.role === "description" && slide.design.templateId === "homes-card" && <DescriptionHint el={el} measure={measure} />}
+        {el.role === "description" && isContentCard(slide.design.templateId) && <DescriptionHint el={el} measure={measure} />}
         <SlideTextAi el={el} />
         {inStack && (
           <p className="text-[11px] text-muted-foreground">
@@ -127,6 +129,38 @@ export function TextProperties({ el }: { el: TextElement }) {
               Stays on one line: the size shrinks from the max until the line fits the width (line height 100%).
             </p>
           </>
+        ) : el.boxFit ? (
+          <>
+            <FieldRow cols={3}>
+              <NumberField
+                label="Size"
+                value={el.boxFit.maxSize}
+                min={8}
+                max={600}
+                onChange={(maxSize) => update({ boxFit: { ...el.boxFit!, maxSize } })}
+                suffix="px"
+              />
+              <NumberField
+                label="Grows to"
+                value={el.boxFit.growTo ?? el.boxFit.maxSize}
+                min={8}
+                max={600}
+                onChange={(growTo) => update({ boxFit: { ...el.boxFit!, growTo } })}
+                suffix="px"
+              />
+              <NumberField
+                label="Box height"
+                value={el.boxFit.maxHeight}
+                min={20}
+                max={1500}
+                onChange={(maxHeight) => update({ boxFit: { ...el.boxFit!, maxHeight } })}
+                suffix="px"
+              />
+            </FieldRow>
+            <p className="text-[11px] text-muted-foreground">
+              Fits the box (now {el.fontSize}px): long text shrinks from the max size; short text grows up to &ldquo;Grows to&rdquo; while it keeps its number of lines.
+            </p>
+          </>
         ) : (
           <FieldRow cols={3}>
             <NumberField label="Size" value={el.fontSize} min={4} max={600} onChange={(fontSize) => update({ fontSize })} suffix="px" />
@@ -149,13 +183,36 @@ export function TextProperties({ el }: { el: TextElement }) {
             onCheckedChange={(on) =>
               update(
                 on
-                  ? { autoFit: { maxWidth: Math.round(el.width), maxSize: el.fontSize, letterSpacingEm: Math.round((el.letterSpacing / el.fontSize) * 1000) / 1000 } }
+                  ? { autoFit: { maxWidth: Math.round(el.width), maxSize: el.fontSize, letterSpacingEm: Math.round((el.letterSpacing / el.fontSize) * 1000) / 1000 }, boxFit: null }
                   : { autoFit: null },
               )
             }
             aria-label="Shrink to fit on one line"
           />
         </label>
+        {!el.autoFit && (
+          <label className="flex items-center justify-between gap-2 text-xs">
+            <span>Shrink to fit the box</span>
+            <Switch
+              checked={!!el.boxFit}
+              onCheckedChange={(on) =>
+                update(
+                  on
+                    ? {
+                        boxFit: {
+                          maxHeight: Math.round(el.lineHeight * 3),
+                          maxSize: el.fontSize,
+                          lineHeightRatio: Math.round((el.lineHeight / el.fontSize) * 1000) / 1000,
+                          letterSpacingEm: Math.round((el.letterSpacing / el.fontSize) * 1000) / 1000,
+                        },
+                      }
+                    : { boxFit: null },
+                )
+              }
+              aria-label="Shrink to fit the box"
+            />
+          </label>
+        )}
         <label className="flex items-center justify-between gap-2 text-xs">
           <span>Capital letters</span>
           <Switch checked={el.textCase === "upper"} onCheckedChange={(on) => update({ textCase: on ? "upper" : null })} aria-label="Capital letters" />
@@ -194,6 +251,34 @@ export function TextProperties({ el }: { el: TextElement }) {
                 : undefined
           }
         />
+      </Section>
+
+      <Section
+        title="Highlighted words"
+        action={
+          <Switch
+            checked={!!el.highlight}
+            onCheckedChange={(on) => update({ highlight: on ? { phrases: [], fill: "#F8C563" } : null })}
+            aria-label="Highlight words"
+          />
+        }
+      >
+        {el.highlight && (
+          <>
+            <HighlightField
+              headline={el.text}
+              value={el.highlight.phrases.join(" ")}
+              accent={el.highlight.fill}
+              onChange={(phrase) => update({ highlight: { ...el.highlight!, phrases: phrase.trim() ? [phrase] : [] } }, `highlight:${el.id}`)}
+            />
+            <ColorField
+              label="Highlight color"
+              value={el.highlight.fill}
+              onChange={(fill) => update({ highlight: { ...el.highlight!, fill } }, `highlight-color:${el.id}`)}
+            />
+            {el.fillGradient && <p className="text-[11px] text-amber-700 dark:text-amber-300">Highlights show on a solid text color only.</p>}
+          </>
+        )}
       </Section>
 
       <Section

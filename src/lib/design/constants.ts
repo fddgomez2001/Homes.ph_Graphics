@@ -31,6 +31,8 @@ export const FONTS: FontOption[] = [
   { family: "Outfit", weights: [300, 400, 500, 600, 700, 800, 900] },
   { family: "Inter", weights: [300, 400, 500, 600, 700, 800, 900] },
   { family: "Plus Jakarta Sans", weights: [300, 400, 500, 600, 700, 800] },
+  { family: "League Spartan", weights: [400, 500, 600, 700, 800, 900] },
+  { family: "Poppins", weights: [300, 400, 500, 600, 700] },
 ]
 
 export const WEIGHT_LABELS: Record<number, string> = {
@@ -68,12 +70,29 @@ export const SWOOSH_LEFT_SRC = "/brand/top-left-swoosh.png"
 /** PicklePlay news article (1408 × 1408): background art (gradient, glow, swooshes, pickleball) and logo. */
 export const NEWS_SIZE = 1408
 export const PICKLEPLAY_BACKGROUND_SRC = "/brand/news/pickleplay-background.png"
+/** The new PicklePlay news article's background (1126 × 1408, built by scripts/build-news-backgrounds.cjs). */
+export const PICKLEPLAY_PORTRAIT_BACKGROUND_SRC = "/brand/news/pickleplay-background-portrait.png"
+/** The PicklePlay poster's New Template background (1126 × 1408): gradient, glow, swooshes and the faded ball, from Figma "Pickleplay_Poster". */
 export const PICKLEPLAY_LOGO_SRC = "/brand/news/pickleplay-logo.png"
 /** FHI Global Property (Dubai) logo, 348 × 133 on transparent. */
 export const FHI_LOGO_SRC = "/brand/news/fhi-global-logo.png"
+/** The FHI Global Property logo as on the New Template posters (1044 × 384, no baked shadow), from Figma "FHI_Poster". */
+export const FHI_POSTER_LOGO_SRC = "/brand/news/fhi-global-logo-hd.png"
 
 export const ICON_WEB_SRC = "/brand/icon-web.png"
 export const ICON_FACEBOOK_SRC = "/brand/icon-facebook.png"
+/** FHI shield emblem (110 × 133), the logo on the FHI poster. */
+export const FHI_EMBLEM_SRC = "/brand/news/fhi-emblem.png"
+/**
+ * "Neon Lime Pickleball on Transparent Background" exported from Figma (234 × 187), the PicklePlay
+ * poster's bottom-right corner. The export already has the layer's 50% opacity and 1 px border.
+ */
+export const POSTER_PICKLEBALL_SRC = "/brand/poster/pickleball.png"
+/**
+ * The Rentsouq.ae logo on its posters: "Rentsouq White.png" (3876 × 1222) made 1112 × 350, twice the Old
+ * Template's 556 × 175 box and the shape of both boxes (Figma stretches the picture to fill them).
+ */
+export const RENTSOUQ_LOGO_SRC = "/brand/poster/rentsouq-logo.png"
 export const DEFAULT_WEBSITE_TEXT = "www.homes.ph"
 export const DEFAULT_FACEBOOK_TEXT = "facebook.com/homesphofficial"
 

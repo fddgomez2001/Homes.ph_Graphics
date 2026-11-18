@@ -10,6 +10,7 @@ import type { CloudinaryStatus, UploadTestResult } from "@/lib/cloudinary/types"
 import { getCloudinaryStatus, testCloudinaryUpload } from "@/lib/data/assets"
 import { syncPendingImages } from "@/lib/image-sync"
 import { clearUploadedCopies, listPending, localImageStats, type LocalImageStats, type PendingUpload } from "@/lib/local-images"
+import { useDesktopSetup, useLocalMode } from "@/lib/local/use-local-mode"
 import { cn, errorMessage, formatBytes } from "@/lib/utils"
 
 const GB = 1024 ** 3
@@ -42,6 +43,14 @@ const gb = (bytes: number) => `${(bytes / GB).toFixed(bytes < 10 * GB ? 2 : 1)} 
 
 /** Settings card: real Cloudinary check, storage/credit usage, and the images saved on this computer. */
 export function StorageSection() {
+  const local = useLocalMode()
+  const [setup] = useDesktopSetup()
+  // No account: the photos are in the work folder (Where your work is saved) unless they go to the person's Cloudinary.
+  if (local && (!setup || setup.storage.kind === "local")) return null
+  return <CloudStorageSection />
+}
+
+function CloudStorageSection() {
   const confirm = useConfirm()
   const [cloud, setCloud] = useState<CloudinaryStatus | { error: string } | null>(null)
   const [checking, setChecking] = useState(false)
@@ -221,7 +230,7 @@ export function StorageSection() {
             label="Stored by this app"
             value={`${gb(app.bytes)} of ${gb(FREE_PLAN_BYTES)}`}
             percent={(app.bytes / FREE_PLAN_BYTES) * 100}
-            detail={`${app.images.toLocaleString()} original image${app.images === 1 ? "" : "s"} uploaded from Daily Carousel Maker. Measured against Cloudinary's Free plan (25 credits ≈ 25 GB); other files in your Cloudinary account aren't counted here.`}
+            detail={`${app.images.toLocaleString()} original image${app.images === 1 ? "" : "s"} uploaded from Homes.ph SocMedSystem. Measured against Cloudinary's Free plan (25 credits ≈ 25 GB); other files in your Cloudinary account aren't counted here.`}
           />
         )}
         {usage && app && (

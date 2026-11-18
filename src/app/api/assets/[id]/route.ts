@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { CloudinaryError, destroyAsset, getCloudinaryConfig } from "@/lib/cloudinary/server"
+import { localDelete } from "@/lib/local/upload"
+import { fromThisApp, isLocalMode } from "@/lib/local/setup"
 import { getRequestUser } from "@/lib/supabase/server"
 
 /**
@@ -7,9 +9,10 @@ import { getRequestUser } from "@/lib/supabase/server"
  * the library row. RLS guarantees a user can only find (and so delete) their own assets.
  * Removing an image from a slide never calls this.
  */
-export async function DELETE(_request: Request, context: RouteContext<"/api/assets/[id]">) {
+export async function DELETE(request: Request, context: RouteContext<"/api/assets/[id]">) {
   const { id } = await context.params
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "Invalid asset id." }, { status: 400 })
+  if (isLocalMode()) return fromThisApp(request.headers) ? localDelete(id) : NextResponse.json({ error: "Only the Homes.ph SocMedSystem app can use this." }, { status: 403 })
 
   const { supabase, user } = await getRequestUser()
   if (!user) return NextResponse.json({ error: "Please sign in again." }, { status: 401 })

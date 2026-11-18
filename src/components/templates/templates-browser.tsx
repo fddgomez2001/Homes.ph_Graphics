@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { getTemplateContext } from "@/lib/data/settings"
 import { swr } from "@/lib/cache"
 import { deleteTemplate, listTemplates, renameTemplate } from "@/lib/data/templates"
-import { BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE_CONTEXT, type TemplateContext } from "@/lib/design/templates"
+import { BUILT_IN_TEMPLATES, CAROUSEL_BRANDS, DEFAULT_TEMPLATE_CONTEXT, type TemplateContext } from "@/lib/design/templates"
 import type { TemplateRow } from "@/lib/types"
 import { errorMessage } from "@/lib/utils"
 import { useBuiltInPreviews } from "./use-template-previews"
@@ -47,31 +47,34 @@ export function TemplatesBrowser() {
       <div className="flex flex-col gap-8 p-4 lg:p-6">
         <p className="max-w-3xl text-sm text-muted-foreground">
           In the editor, open the <span className="font-medium text-foreground">Templates</span> tab to add a new slide from a template or apply
-          one to the current slide (your text and photo are kept). New carousels always start with the Homes.ph cover.
+          one to the current slide (your text and photo are kept). New carousels start with the Homes.ph cover unless you pick FHI Global Property
+          or PicklePlay in Create New Carousel; Templates → Carousel brand in the editor switches a whole carousel.
         </p>
 
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold">Homes.ph templates</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {BUILT_IN_TEMPLATES.map((t) => (
-              <div key={t.id} className="overflow-hidden rounded-xl border bg-card shadow-2xs">
-                <div className="aspect-square bg-muted">
-                  {previews[t.id] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={previews[t.id]} alt={`${t.name} preview`} className="size-full object-cover" />
-                  ) : (
-                    <div className="size-full animate-pulse bg-slate-200 dark:bg-slate-800" />
-                  )}
+        {CAROUSEL_BRANDS.map((brand) => (
+          <section key={brand.id} className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold">{brand.name} templates</h2>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              {BUILT_IN_TEMPLATES.filter((t) => (t.brand ?? "homes") === brand.id).map((t) => (
+                <div key={t.id} className="overflow-hidden rounded-xl border bg-card shadow-2xs">
+                  <div className="aspect-square bg-muted">
+                    {previews[t.id] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={previews[t.id]} alt={`${t.name} preview`} className="size-full object-cover" />
+                    ) : (
+                      <div className="size-full animate-pulse bg-slate-200 dark:bg-slate-800" />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 p-3">
+                    <span className="text-sm font-medium">{t.name}</span>
+                    <span className="text-xs text-muted-foreground">{t.description}</span>
+                    <span className="mt-1 text-[11px] font-medium text-primary">{t.slideType === "cover" ? "Cover" : "Card"}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1 p-3">
-                  <span className="text-sm font-medium">{t.name}</span>
-                  <span className="text-xs text-muted-foreground">{t.description}</span>
-                  <span className="mt-1 text-[11px] font-medium text-primary">{t.slideType === "cover" ? "Cover" : "Card"}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        ))}
 
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold">Saved by you</h2>

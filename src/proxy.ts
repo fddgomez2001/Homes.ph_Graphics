@@ -1,10 +1,13 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { IS_WEBSITE, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/env"
+import { desktopMode } from "@/lib/local/setup"
+import { MODE_COOKIE } from "@/lib/local/shared"
 
 const PUBLIC_PATHS = ["/login", "/auth"]
 /** The website deployment (SITE_MODE=website) serves only these. */
-const WEBSITE_PATHS = ["/site", "/checklist", ...PUBLIC_PATHS]
+// /graphicdesktopapp: the Windows app download page (signed-in people only, like the rest).
+const WEBSITE_PATHS = ["/site", "/checklist", "/graphicdesktopapp", ...PUBLIC_PATHS]
 const HOME = IS_WEBSITE ? "/site" : "/home"
 
 const under = (pathname: string, paths: string[]) => paths.some((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -25,6 +28,42 @@ const isAuthCookie = (name: string) => name === `sb-${PROJECT_REF}-auth-token` |
  */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
+
+  // The desktop app: a first start goes through the welcome setup; without an account the work is
+  // saved on this computer (no sign-in at all). The page learns the mode from a cookie.
+  const desktop = desktopMode()
+  if (desktop) {
+    const withMode = (response: NextResponse) => {
+      if (request.cookies.get(MODE_COOKIE)?.value !== desktop) response.cookies.set(MODE_COOKIE, desktop, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 })
+      return response
+    }
+    if (desktop === "setup") {
+      if (pathname === "/welcome") return withMode(NextResponse.next({ request }))
+      const url = request.nextUrl.clone()
+      url.pathname = "/welcome"
+      url.search = ""
+      return withMode(NextResponse.redirect(url))
+    }
+    if (desktop === "local") {
+      // No sign-in page without an account.
+      if (pathname === "/login" || pathname === "/") {
+        const url = request.nextUrl.clone()
+        url.pathname = "/home"
+        url.search = ""
+        return withMode(NextResponse.redirect(url))
+      }
+      return withMode(NextResponse.next({ request }))
+    }
+    // Signed in to the team cloud: as on the website (below), plus the welcome setup can run again.
+    if (pathname === "/welcome") return withMode(NextResponse.next({ request }))
+    const response = await accountProxy(request, pathname, search)
+    return withMode(response)
+  }
+  return accountProxy(request, pathname, search)
+}
+
+/** Signed-in access (the website, and the desktop app with a team account). */
+async function accountProxy(request: NextRequest, pathname: string, search: string) {
   // The website has no editor: everything else leads to the carousels.
   if (IS_WEBSITE && !under(pathname, WEBSITE_PATHS)) {
     const url = request.nextUrl.clone()
@@ -78,7 +117,8 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Skip static assets and API routes (Route Handlers authenticate on their own,
   // and skipping them avoids the proxy's request-body buffering limit on uploads).
+  // enhance/, ort/ and models/ are the photo enhancer's worker, runtime and AI model.
   matcher: [
-    "/((?!_next/static|_next/image|api/|brand/|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2)$).*)",
+    "/((?!_next/static|_next/image|api/|brand/|enhance/|ort/|models/|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2)$).*)",
   ],
 }

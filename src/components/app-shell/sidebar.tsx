@@ -9,10 +9,12 @@ import {
   CircleCheckBig,
   ClipboardList,
   FilePen,
+  Frame,
   House,
   Images,
   LayoutGrid,
   LayoutTemplate,
+  Megaphone,
   Newspaper,
   PanelsTopLeft,
   Settings,
@@ -20,22 +22,27 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { BrandMark } from "@/components/brand-mark"
+import { useAssignment } from "@/lib/assignment"
 import { cn } from "@/lib/utils"
 
 interface NavItem {
   href: string
   label: string
   icon: LucideIcon
+  /** Only for people who make the carousel (Settings → Assigned pages → Carousel). */
+  carousel?: true
 }
 
 const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
   {
     items: [
       { href: "/home", label: "Home", icon: House },
-      { href: "/calendar", label: "Calendar", icon: CalendarDays },
-      { href: "/board", label: "Day Board", icon: PanelsTopLeft },
+      { href: "/calendar", label: "Calendar", icon: CalendarDays, carousel: true },
+      { href: "/board", label: "Day Board", icon: PanelsTopLeft, carousel: true },
       { href: "/content", label: "All Content", icon: LayoutGrid },
       { href: "/news", label: "News Article", icon: Newspaper },
+      { href: "/posters", label: "Poster Maker", icon: Frame },
+      { href: "/ads", label: "Advertisement", icon: Megaphone },
       { href: "/report", label: "Daily Report", icon: ClipboardList },
     ],
   },
@@ -58,13 +65,14 @@ const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
 ]
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const { assignment } = useAssignment()
   return (
     <div className="flex h-full flex-col">
       <Link href="/home" onClick={onNavigate} className="flex items-center gap-2.5 px-4 py-4">
         <BrandMark className="size-8" />
         <div className="leading-tight">
           <div className="text-sm font-semibold tracking-tight">Homes.ph</div>
-          <div className="text-xs text-muted-foreground">Daily Carousel Maker</div>
+          <div className="text-xs text-muted-foreground">SocMedSystem</div>
         </div>
       </Link>
       <nav aria-label="Main" className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-2">
@@ -73,7 +81,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             {group.label && (
               <div className="px-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{group.label}</div>
             )}
-            {group.items.map((item) => (
+            {group.items
+              .filter((item) => !item.carousel || assignment.carousel)
+              .map((item) => (
               <Suspense key={item.href} fallback={<NavLink item={item} active={false} onNavigate={onNavigate} />}>
                 <ActiveNavLink item={item} onNavigate={onNavigate} />
               </Suspense>

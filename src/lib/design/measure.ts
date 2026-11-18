@@ -4,6 +4,7 @@ import Konva from "konva"
 import { textAttrs } from "./konva-attrs"
 import type { MeasureText } from "./layout"
 import type { MeasureLine } from "./title-fit"
+import type { MeasureWidest } from "./box-fit"
 
 let measurer: Konva.Text | null = null
 let lineMeasurer: Konva.Text | null = null
@@ -20,4 +21,11 @@ export const measureLineWidth: MeasureLine = (el) => {
   lineMeasurer ??= new Konva.Text({})
   lineMeasurer.setAttrs({ ...textAttrs(el), width: undefined, wrap: "none", padding: 0 })
   return lineMeasurer.getTextWidth()
+}
+
+/** Width of the widest line as the text wraps in its box (padding not included). */
+export const measureWidestLine: MeasureWidest = (el) => {
+  measurer ??= new Konva.Text({})
+  measurer.setAttrs(textAttrs(el))
+  return Math.max(0, ...measurer.textArr.map((line) => line.width))
 }

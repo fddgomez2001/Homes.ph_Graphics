@@ -22,6 +22,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { CANVAS_SIZE, type DesignElement } from "@/lib/design/types"
 import { FieldRow, NumberField, Section, SliderField } from "../fields"
 import { useEditor, useEditorStore, useSelectedElement } from "../store"
+import { isPhotoSlot } from "@/lib/design/cover-collage"
+import { SlotProperties } from "./cover-collage"
 import { ImageProperties } from "./image-properties"
 import { ShapeProperties } from "./shape-properties"
 import { SlideProperties } from "./slide-properties"
@@ -30,6 +32,26 @@ import { TextProperties } from "./text-properties"
 export function PropertiesPanel() {
   const el = useSelectedElement()
   if (!el) return <SlideProperties />
+  // A cover collage photo slot has its own, simpler panel.
+  if (isPhotoSlot(el)) return <SlotProperties el={el} />
+  // A brand post's template layer (1.53): its texts and photo are changed in the Poster Maker.
+  if (el.type === "image" && el.templatePart) {
+    return (
+      <div>
+        <div className="border-b px-4 py-3">
+          <div className="truncate text-sm font-semibold">{el.name}</div>
+          <div className="text-xs text-muted-foreground">Template layer</div>
+        </div>
+        <p className="px-4 py-3 text-xs text-muted-foreground">
+          {el.templatePart === "back"
+            ? "The template's background, photo and fades. Change the photo in the Poster Maker."
+            : "The template's logo, headline, subtext and footer. Change the texts in the Poster Maker."}{" "}
+          Put your own pictures, cut-out people, text or shapes under, between or over the two template layers (Layers tab), or hide one.
+        </p>
+        <ArrangeSection el={el} />
+      </div>
+    )
+  }
   return (
     <div>
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">

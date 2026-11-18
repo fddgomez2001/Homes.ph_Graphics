@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { getIntegrationStatus, uploadAsset } from "@/lib/data/assets"
 import { CANVAS_SIZE, type ImageElement, type SlideDesign } from "@/lib/design/types"
 import { loadImage, primeImage } from "@/lib/design/image-cache"
+import { isPhotoSlot, photoSlots } from "@/lib/design/cover-collage"
 import { backgroundImage, imageElement } from "@/lib/design/templates"
 import { checkImageFile } from "@/lib/image-validation"
 import { announceUploaded, uploadingNow } from "@/lib/image-sync"
@@ -38,6 +39,10 @@ export function slideBackground(design: SlideDesign): ImageElement | undefined {
 }
 
 export function hasEmptyBackground(design: SlideDesign) {
+  // A brand post's photo is set in the Poster Maker: pictures added here are layers of their own.
+  if (design.brandPost) return false
+  // A collage cover takes photos in its slots: there is room while one of them is empty.
+  if (design.collage) return photoSlots(design).some((s) => !s.src)
   const bg = slideBackground(design)
   return !bg || !bg.src
 }
@@ -63,21 +68,35 @@ export function placeImage(store: EditorStore, image: ImageSource, target: Impor
     uploadId: image.uploadId ?? null,
   }
 
+  // A cover with a photo collage has no single background: the photo goes into the selected
+  // slot, or else the first slot without a photo (the first slot when all are filled).
+  if (target.mode === "background" && slide.design.collage) {
+    const slots = photoSlots(slide.design)
+    const slot = slots.find((s) => s.id === state.selectedId) ?? slots.find((s) => !s.src) ?? slots[0]
+    if (slot) target = { mode: "replace", slideId: slide.id, elementId: slot.id }
+  }
+
   if (target.mode === "replace") {
+    // A collage slot given its own photo stops following its card.
+    const elementId = target.elementId
+    const slotEl = slide.design.elements.find((e) => e.id === elementId)
+    const slotFields = isPhotoSlot(slotEl) ? { slot: { ...slotEl.slot, card: null } } : {}
     // Replacing the Homes.ph logo with another image makes it a custom logo (no auto color).
     const isLogo = slide.design.elements.some((e) => e.id === target.elementId && e.role === "logo")
     const logoFields = isLogo ? { logoVariant: null, logoResolved: null } : {}
-    state.updateElement(target.elementId, { ...sourceFields, ...logoFields, zoom: 1, focusX: 0.5, focusY: 0.5 }, { history: null })
+    state.updateElement(target.elementId, { ...sourceFields, ...logoFields, ...slotFields, zoom: 1, focusX: 0.5, focusY: 0.5 }, { history: null })
+    if (state.currentSlideId !== slide.id) state.setCurrentSlide(slide.id)
     state.select(target.elementId)
     return target.elementId
   }
 
   if (target.mode === "background") {
-    const bg = slideBackground(slide.design)
-    if (bg) {
-      state.updateElement(bg.id, { ...sourceFields, zoom: 1, focusX: 0.5, focusY: 0.5, visible: true }, { history: null })
+    // A poster shows the photo twice (in the card and faded behind it): fill every background slot.
+    const backgrounds = slide.design.elements.filter((e): e is ImageElement => e.type === "image" && e.role === "background")
+    if (backgrounds.length) {
+      for (const bg of backgrounds) state.updateElement(bg.id, { ...sourceFields, zoom: 1, focusX: 0.5, focusY: 0.5, visible: true }, { history: null })
       if (state.currentSlideId !== slide.id) state.setCurrentSlide(slide.id)
-      return bg.id
+      return backgrounds.at(-1)!.id
     }
     const el = { ...backgroundImage(), ...sourceFields }
     state.addElement(el, { slideId: slide.id, index: 0, select: false })

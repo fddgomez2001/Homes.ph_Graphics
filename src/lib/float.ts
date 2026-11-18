@@ -25,11 +25,13 @@ export interface FloatState {
   currentSlideId: string
   saveStatus: "saved" | "dirty" | "saving" | "error" | "conflict"
   slides: FloatSlide[]
+  /** `seq` of the last text edit from the float that this state includes. */
+  ack?: number
 }
 
 export type FloatCommand =
-  | { type: "set-text"; slideId: string; elementId: string; text: string }
-  | { type: "set-caption"; text: string }
+  | { type: "set-text"; slideId: string; elementId: string; text: string; seq?: number }
+  | { type: "set-caption"; text: string; seq?: number }
   | { type: "select-slide"; slideId: string }
   | { type: "add-card"; afterSlideId: string }
   | { type: "paste-image"; slideId: string; name: string; mime: string; bytes: ArrayBuffer }

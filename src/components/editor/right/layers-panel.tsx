@@ -4,7 +4,7 @@ import { useState } from "react"
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core"
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Copy, Eye, EyeOff, GripVertical, Image as ImageIcon, Lock, LockOpen, Square, Trash2, Type } from "lucide-react"
+import { Copy, Eye, EyeOff, GripVertical, Image as ImageIcon, Layers, Lock, LockOpen, Square, Trash2, Type } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { DesignElement } from "@/lib/design/types"
@@ -16,7 +16,8 @@ export function LayersPanel() {
   const slide = useCurrentSlide()
   const selectedId = useEditor((s) => s.selectedId)
   const elements = slide.design.elements
-  const topFirst = [...elements].reverse()
+  // A brand post's own texts and photos are drawn by its template layers (not layers of their own).
+  const topFirst = [...elements].reverse().filter((e) => !e.carrier)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -24,13 +25,15 @@ export function LayersPanel() {
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
-    const toListIndex = topFirst.findIndex((e) => e.id === over.id)
-    store.getState().reorderLayer(String(active.id), elements.length - 1 - toListIndex)
+    store.getState().reorderLayer(String(active.id), elements.findIndex((e) => e.id === over.id))
   }
 
   return (
     <div className="flex flex-col gap-1 p-3">
-      <p className="px-1 pb-1 text-[11px] text-muted-foreground">Top of the list is in front. Drag to reorder; locked layers can only be selected here.</p>
+      <p className="px-1 pb-1 text-[11px] text-muted-foreground">
+        Top of the list is in front. Drag to reorder; locked layers can only be selected here.
+        {slide.design.brandPost && " Put your pictures between the template's two layers to have them behind its text (e.g. a person in front of the photo, under the headline)."}
+      </p>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={topFirst.map((e) => e.id)} strategy={verticalListSortingStrategy}>
           <ul className="flex flex-col gap-1">
@@ -48,7 +51,7 @@ function LayerRow({ el, selected }: { el: DesignElement; selected: boolean }) {
   const store = useEditorStore()
   const [renaming, setRenaming] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: el.id })
-  const Icon = el.type === "text" ? Type : el.type === "image" ? ImageIcon : Square
+  const Icon = el.type === "image" && el.templatePart ? Layers : el.type === "text" ? Type : el.type === "image" ? ImageIcon : Square
   const update = (patch: Partial<DesignElement>) => store.getState().updateElement(el.id, patch, { history: null })
 
   return (
@@ -106,12 +109,16 @@ function LayerRow({ el, selected }: { el: DesignElement; selected: boolean }) {
         <Button variant="ghost" size="icon-xs" onClick={() => update({ locked: !el.locked })} aria-label={el.locked ? `Unlock ${el.name}` : `Lock ${el.name}`}>
           {el.locked ? <Lock /> : <LockOpen />}
         </Button>
-        <Button variant="ghost" size="icon-xs" onClick={() => store.getState().duplicateElement(el.id)} aria-label={`Duplicate ${el.name}`}>
-          <Copy />
-        </Button>
-        <Button variant="ghost" size="icon-xs" onClick={() => store.getState().removeElement(el.id)} aria-label={`Delete ${el.name}`}>
-          <Trash2 />
-        </Button>
+        {!(el.type === "image" && el.templatePart) && (
+          <>
+            <Button variant="ghost" size="icon-xs" onClick={() => store.getState().duplicateElement(el.id)} aria-label={`Duplicate ${el.name}`}>
+              <Copy />
+            </Button>
+            <Button variant="ghost" size="icon-xs" onClick={() => store.getState().removeElement(el.id)} aria-label={`Delete ${el.name}`}>
+              <Trash2 />
+            </Button>
+          </>
+        )}
       </div>
     </li>
   )

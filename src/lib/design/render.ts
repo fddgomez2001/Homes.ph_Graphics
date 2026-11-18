@@ -1,6 +1,8 @@
 "use client"
 
 import Konva from "konva"
+import { blurBackdrop, blurredCopy } from "./blur-fill"
+import { slotDef } from "./cover-collage"
 import { ensureFonts } from "./fonts"
 import { glowBitmap, isGlowShape } from "./glow"
 import { isAutoLogo, logoForLuminance, logoSource, meanLuminance, type ResolvedLogo } from "./logo"
@@ -16,6 +18,8 @@ import {
   textAttrs,
 } from "./konva-attrs"
 import type { DesignElement, SlideDesign } from "./types"
+import { isBrandPostDesign } from "@/lib/brand-templates/posts"
+import { hasUserLayers, isCarrier, isTemplatePart, partsChanged } from "@/lib/brand-templates/layers"
 
 export class RenderError extends Error {}
 
@@ -119,6 +123,33 @@ function applyAutoLogos(built: BuiltStage, images: Map<string, HTMLImageElement>
  */
 export async function renderDesignToCanvas(design: SlideDesign, options: RenderOptions = {}): Promise<HTMLCanvasElement> {
   const pixelRatio = options.pixelRatio ?? 1
+  // A brand post (1.52) is drawn by its SVG template; with layers of its own (1.53), layer by layer.
+  if (isBrandPostDesign(design)) {
+    const { renderBrandPostParts, renderBrandPostToCanvas } = await import("@/lib/brand-templates/render")
+    const fail = (e: Error) => {
+      throw new RenderError(e.message)
+    }
+    if (!hasUserLayers(design) && !partsChanged(design)) return renderBrandPostToCanvas(design, { pixelRatio, tolerateMissingImages: options.tolerateMissingImages }).catch(fail)
+    const parts = await renderBrandPostParts(design, { pixelRatio: Math.max(1, pixelRatio), tolerateMissingImages: options.tolerateMissingImages }).catch(fail)
+    const own = { ...design, elements: design.elements.filter((e) => !isCarrier(e) && !isTemplatePart(e)) }
+    const images = await prepare(own, options)
+    const elements = design.elements
+      .filter((e) => !isCarrier(e))
+      .map((e) => {
+        if (!isTemplatePart(e)) return e
+        const canvas = parts[e.templatePart]
+        const key = `template-part:${e.templatePart}`
+        images.set(key, canvas as unknown as HTMLImageElement)
+        return { ...e, src: key, naturalWidth: canvas.width, naturalHeight: canvas.height }
+      })
+    const built = buildStage({ ...design, elements }, images)
+    try {
+      const canvas = built.layer.toCanvas({ x: 0, y: 0, width: design.width, height: design.height, pixelRatio })
+      return canvas
+    } finally {
+      built.stage.destroy()
+    }
+  }
   const images = await prepare(design, options)
   const built = buildStage(design, images)
   try {
@@ -137,6 +168,7 @@ export async function renderDesignToCanvas(design: SlideDesign, options: RenderO
 
 /** Which logo (white/blue) each automatic logo should show — the same decision the export makes. */
 export async function resolveAutoLogos(design: SlideDesign): Promise<Map<string, ResolvedLogo>> {
+  if (isBrandPostDesign(design)) return new Map()
   if (!design.elements.some((el) => el.type === "image" && el.visible && isAutoLogo(el))) return new Map()
   const images = await prepare(design, { tolerateMissingImages: true })
   const built = buildStage(design, images)
@@ -164,10 +196,18 @@ function buildNode(el: DesignElement, images: Map<string, HTMLImageElement>): Ko
     }
     case "image": {
       const group = new Konva.Group(imageGroupAttrs(el))
+      // A cover collage slot without a photo shows its color, so the shape is never a hole.
+      const slotColor = slotDef(el.slot)?.color
+      if (slotColor) group.add(new Konva.Rect({ width: el.width, height: el.height, fill: slotColor }))
       const img = el.src ? images.get(el.src) : undefined
       if (img) {
-        const { crop, ...rect } = imageDrawAttrs(el, img)
-        group.add(new Konva.Image({ image: img, ...rect, crop, ...imageShadowAttrs(el), sceneFunc: highQualityImageSceneFunc }))
+        // A zoomed-out photo card: its blurred copy fills the frame behind it.
+        const backdrop = blurBackdrop(el, img)
+        if (backdrop) group.add(new Konva.Image({ ...backdrop, sceneFunc: highQualityImageSceneFunc }))
+        // A backdrop that follows the photo: its blurred copy.
+        const shown = el.blurred ? blurredCopy(img) : img
+        const { crop, ...rect } = imageDrawAttrs(el, el.blurred ? { naturalWidth: shown.width, naturalHeight: shown.height } : img)
+        group.add(new Konva.Image({ image: shown, ...rect, crop, ...imageShadowAttrs(el), sceneFunc: highQualityImageSceneFunc }))
       }
       return group
     }

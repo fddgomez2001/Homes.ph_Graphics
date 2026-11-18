@@ -53,3 +53,19 @@ next-env.d.ts
 /android/release-key/
 *.jks
 *.keystore
+
+# photo enhancer runtime, copied from node_modules/onnxruntime-web by scripts/copy-ort.mjs
+/public/ort/
+
+# installers and app packages (big; built by npm run desktop:dist / the Android build)
+*.exe
+*.blockmap
+*.apk
+*.aab
+
+# the team's original Figma / Canva design exports (big): kept on the PC only. The build scripts read them;
+# what the app uses is made from them and committed (public/ads, public/brand/templates, public/brand/carousel/collage…)
+/public/Pickleplay Templates/
+/public/Poster Maker Template/
+/public/brand/carousel/Carousel Cover Templates/
+/public/ALL-BRAND-TEMPLATES/

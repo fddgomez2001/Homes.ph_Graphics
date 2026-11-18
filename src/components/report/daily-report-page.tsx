@@ -15,8 +15,10 @@ import {
   Loader2,
   Maximize2,
   Newspaper,
+  PictureInPicture2,
   RefreshCw,
   Share2,
+  ClipboardList,
 } from "lucide-react"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/app-shell/page-header"
@@ -24,9 +26,11 @@ import { useProjectSlides, useSlideRenders } from "@/components/board/slide-rend
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { loadReportData, type ReportCarousel, type ReportData, type ReportPost } from "@/lib/data/report"
+import { getDesktop } from "@/lib/desktop"
 import { IS_MOBILE_APP } from "@/lib/env"
 import { LOGO_BLUE_SRC, PICKLEPLAY_LOGO_SRC } from "@/lib/design/constants"
-import { NEWS_BRANDS, newsTimeLabel, newsTimesFor, type NewsBrand } from "@/lib/design/news-templates"
+import { NEWS_BRANDS, newsTimeLabel, type DailyBrand } from "@/lib/design/news-templates"
+import { isPageLane, laneTimesOf, reportBrandLabel, type ReportBrand } from "@/lib/news-lanes"
 import { NEWS_HEADLINE_PLACEHOLDER } from "@/lib/design/templates"
 import type { SlideDesign } from "@/lib/design/types"
 import { doneCarousels, FHI_EMBLEM_SRC, planPending, REPORT_WIDTH, type PendingItem, type ReportImages } from "@/lib/report/daily-report"
@@ -43,13 +47,34 @@ const images: ReportImages = {
 }
 
 /** Logo and post shape of each brand on this page. */
-const BRAND_UI: Record<NewsBrand, { logo: string; aspect: string }> = {
-  pickleplay: { logo: PICKLEPLAY_LOGO_SRC, aspect: "aspect-square" },
+// The tiles have the default template's shape (New Template 1126 × 1408); other sizes fit inside.
+const BRAND_UI: Record<DailyBrand, { logo: string; aspect: string }> = {
+  pickleplay: { logo: PICKLEPLAY_LOGO_SRC, aspect: "aspect-[1126/1408]" },
   fhi: { logo: FHI_EMBLEM_SRC, aspect: "aspect-[1152/1408]" },
-  caraga: { logo: LOGO_BLUE_SRC, aspect: "aspect-square" },
+  caraga: { logo: LOGO_BLUE_SRC, aspect: "aspect-[1126/1408]" },
+  gensan: { logo: LOGO_BLUE_SRC, aspect: "aspect-[1126/1408]" },
 }
+/** Another Homes.ph page's row looks like the Homes.ph CARAGA one. */
+const uiOf = (brand: ReportBrand) => (isPageLane(brand) ? BRAND_UI.caraga : BRAND_UI[brand])
+const siteOf = (brand: ReportBrand) => (isPageLane(brand) ? "homes.ph" : (NEWS_BRANDS.find((b) => b.id === brand)?.site ?? ""))
 
 type Zoom = { src: string; alt: string; wide?: boolean }
+
+/**
+ * The floating report for a day: its own always-on-top window in the desktop app, a small popup
+ * window in a browser.
+ */
+async function openReportFloat(dayKey: string) {
+  const day = isToday(parse(dayKey, "yyyy-MM-dd", new Date())) ? "" : dayKey
+  const desktop = getDesktop()
+  try {
+    if (desktop?.openReportFloat) return void (await desktop.openReportFloat(day))
+    const popup = window.open(`/report-float${day ? `?day=${day}` : ""}`, "dcm-report-float", "popup,width=440,height=820")
+    if (!popup) toast.info("Allow pop-ups for this site to open the floating report.")
+  } catch (e) {
+    toast.error("Couldn't open the floating report", { description: errorMessage(e) })
+  }
+}
 
 /** The day in a "?day=yyyy-MM-dd" search param (today when missing or invalid). */
 export function reportDay(value: string | null) {
@@ -60,8 +85,8 @@ export function reportDay(value: string | null) {
 const dayName = (day: Date) => (isToday(day) ? "Today" : isTomorrow(day) ? "Tomorrow" : format(day, "EEEE"))
 
 /**
- * Daily Report: the "Daily Tasks" image for a day — the PicklePlay, FHI and
- * Homes.ph CARAGA article posts, the carousel and the Homes.ph pages it went out on (DONE),
+ * Daily Report: the "Daily Tasks" image for a day — the PicklePlay, FHI, Homes.ph CARAGA
+ * and Homes.ph Gensan article posts, the carousel and the Homes.ph pages it went out on (DONE),
  * and what's still to do (PENDING) — laid out as a dashboard and downloaded as a PNG.
  */
 export function DailyReportPage() {
@@ -149,7 +174,10 @@ export function DailyReport({ day, onDay, className }: { day: Date; onDay: (day:
   }
 
   const pending = report ? planPending(report) : []
-  const postsOf = (brand: NewsBrand) => report?.today.posts.filter((p) => p.brand === brand) ?? []
+  const postsOf = (brand: ReportBrand) => report?.today.posts.filter((p) => p.brand === brand) ?? []
+  // The assigned pages' rows (before the report loads: the remembered assignment's).
+  const brands = report?.brands ?? []
+  const showCarousel = report ? report.carousel : false
   const pageCount = report?.pages.length || 17
   const dayCarousel = report?.today.carousels[0]
 
@@ -201,6 +229,11 @@ export function DailyReport({ day, onDay, className }: { day: Date; onDay: (day:
               ))}
             </div>
           )}
+          {!IS_MOBILE_APP && (
+            <Button variant="outline" onClick={() => void openReportFloat(dayKey)} title="The day's report lines in a small window that stays on top: click to copy">
+              <PictureInPicture2 /> Floating report
+            </Button>
+          )}
           {IS_MOBILE_APP && (
             <Button variant="outline" onClick={() => void download(true)} disabled={!report || busy}>
               <Share2 /> Share…
@@ -222,25 +255,27 @@ export function DailyReport({ day, onDay, className }: { day: Date; onDay: (day:
       {error && <p className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
       {/* The day at a glance */}
-      <section aria-label="Report summary" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        {NEWS_BRANDS.map((b) => (
+      <section aria-label="Report summary" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        {brands.map((b) => (
           <StatTile
-            key={b.id}
-            icon={<BrandLogo src={BRAND_UI[b.id].logo} />}
-            label={b.name}
-            value={report ? postsOf(b.id).length : null}
-            total={newsTimesFor(b.id).length}
+            key={b}
+            icon={<BrandLogo src={uiOf(b).logo} />}
+            label={reportBrandLabel(b)}
+            value={report ? postsOf(b).length : null}
+            total={laneTimesOf(b).length}
             note={(left) => (left ? `${left} still to post` : "All posted")}
           />
         ))}
-        <StatTile
-          icon={<TileIcon className="bg-primary/12 text-primary"><GalleryHorizontalEnd /></TileIcon>}
-          label="Carousel pages"
-          value={report ? (dayCarousel ? (carousels[0]?.postedPages.length ?? 0) : null) : null}
-          total={pageCount}
-          note={(left) => (left ? `${left} page${left === 1 ? "" : "s"} left` : "Posted everywhere")}
-          empty={report && !dayCarousel ? "No carousel this day" : undefined}
-        />
+        {showCarousel && (
+          <StatTile
+            icon={<TileIcon className="bg-primary/12 text-primary"><GalleryHorizontalEnd /></TileIcon>}
+            label="Carousel pages"
+            value={report ? (dayCarousel ? (carousels[0]?.postedPages.length ?? 0) : null) : null}
+            total={pageCount}
+            note={(left) => (left ? `${left} page${left === 1 ? "" : "s"} left` : "Posted everywhere")}
+            empty={report && !dayCarousel ? "No carousel this day" : undefined}
+          />
+        )}
         <StatTile
           icon={<TileIcon className={pending.length ? "bg-amber-500/12 text-amber-600 dark:text-amber-400" : "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"}><Clock /></TileIcon>}
           label="Pending"
@@ -253,19 +288,14 @@ export function DailyReport({ day, onDay, className }: { day: Date; onDay: (day:
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-6">
           <SectionHeading icon={<CheckCircle2 className="text-emerald-600 dark:text-emerald-400" />} title="Done" note={report ? `${format(day, "MMMM d")}` : undefined} />
-          {NEWS_BRANDS.map((b) => (
-            <BrandCard
-              key={b.id}
-              brand={b.id}
-              name={b.name}
-              site={b.site}
-              posts={postsOf(b.id)}
-              loading={!report}
-              picture={picture}
-              onZoom={setZoom}
-            />
+          {!report && <div className="h-64 animate-pulse rounded-2xl bg-muted" />}
+          {report && !brands.length && !showCarousel && (
+            <EmptyCard icon={<ClipboardList />} text="None of your assigned pages has News Article posts. Change your pages in Settings → Assigned pages." />
+          )}
+          {brands.map((b) => (
+            <BrandCard key={b} brand={b} name={reportBrandLabel(b)} site={siteOf(b)} posts={postsOf(b)} loading={!report} picture={picture} onZoom={setZoom} />
           ))}
-          {report && carousels.length === 0 ? (
+          {!showCarousel ? null : report && carousels.length === 0 ? (
             <EmptyCard icon={<GalleryHorizontalEnd />} text={dayCarousel ? "Today's carousel isn't posted on any page yet." : "No carousel scheduled for this day."} />
           ) : (
             carousels.map((c) => <CarouselCard key={c.project.id} carousel={c} pageCount={pageCount} picture={picture} onZoom={setZoom} />)
@@ -429,7 +459,7 @@ function BrandCard({
   picture,
   onZoom,
 }: {
-  brand: NewsBrand
+  brand: ReportBrand
   name: string
   site: string
   posts: ReportPost[]
@@ -437,9 +467,9 @@ function BrandCard({
   picture: (projectId: string) => string | undefined
   onZoom: (zoom: Zoom) => void
 }) {
-  const times = newsTimesFor(brand)
+  const times = laneTimesOf(brand)
   const made = times.filter((t) => posts.some((p) => p.time === t.time)).length
-  const ui = BRAND_UI[brand]
+  const ui = uiOf(brand)
   return (
     <Card label={`${name} article posting`}>
       <header className="flex flex-wrap items-center gap-3">
@@ -635,7 +665,7 @@ function PendingList({ items }: { items: PendingItem[] }) {
 function PendingRow({ item }: { item: PendingItem }) {
   const article = item.kind === "articles"
   const title = article
-    ? item.brands.map((b) => NEWS_BRANDS.find((x) => x.id === b)?.name ?? b).join(" & ")
+    ? item.brands.map(reportBrandLabel).join(" & ")
     : item.state === "not-made"
       ? "Carousel not made yet"
       : (item.title ?? "Carousel")

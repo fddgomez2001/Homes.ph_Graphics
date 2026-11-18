@@ -3,6 +3,8 @@ import { NextResponse } from "next/server"
 import { CloudinaryError, forgetStatus, getCloudinaryConfig, missingCloudinaryVars, uploadOriginal } from "@/lib/cloudinary/server"
 import { MAX_UPLOAD_BYTES } from "@/lib/design/constants"
 import { detectImageType } from "@/lib/image-validation"
+import { localUpload } from "@/lib/local/upload"
+import { fromThisApp, isLocalMode } from "@/lib/local/setup"
 import { getRequestUser } from "@/lib/supabase/server"
 import type { AssetRow } from "@/lib/types"
 
@@ -16,6 +18,8 @@ const MULTIPART_OVERHEAD = 256 * 1024
  * - Never transforms or downsizes the original.
  */
 export async function POST(request: Request) {
+  // Desktop app without an account: into the app's folder (or the person's own Cloudinary).
+  if (isLocalMode()) return fromThisApp(request.headers) ? localUpload(request) : error(403, "Only the Homes.ph SocMedSystem app can use this.")
   const { supabase, user } = await getRequestUser()
   if (!user) return error(401, "Please sign in again.")
 

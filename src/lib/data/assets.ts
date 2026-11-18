@@ -2,11 +2,14 @@
 
 import { invalidate } from "@/lib/cache"
 import type { CloudinaryStatus, UploadTestResult } from "@/lib/cloudinary/types"
+import { localApi } from "@/lib/local/client"
+import { isLocalMode } from "@/lib/local/shared"
 import { getSupabase } from "@/lib/supabase/client"
 import type { AssetRow } from "@/lib/types"
 import { DataError, toDataError } from "./errors"
 
 export async function listAssets(search?: string): Promise<AssetRow[]> {
+  if (isLocalMode()) return localApi<AssetRow[]>("GET", "assets", undefined, search?.trim() ? { search: search.trim() } : undefined)
   let query = getSupabase().from("carousel_assets").select("*").order("created_at", { ascending: false }).limit(500)
   const term = search?.replace(/[%_*,()"'\\]/g, " ").trim()
   if (term) query = query.ilike("original_filename", `*${term}*`)
@@ -64,6 +67,7 @@ export async function deleteAsset(id: string): Promise<void> {
 /** Number of slides referencing each public id (only the user's own slides are visible). */
 export async function getAssetUsage(publicIds: string[]): Promise<Map<string, number>> {
   if (publicIds.length === 0) return new Map()
+  if (isLocalMode()) return new Map(Object.entries(await localApi<Record<string, number>>("POST", "usage", { publicIds })))
   const { data, error } = await getSupabase().rpc("carousel_asset_usage", { p_public_ids: publicIds })
   if (error) throw toDataError(error)
   return new Map(((data ?? []) as { public_id: string; slide_count: number }[]).map((r) => [r.public_id, Number(r.slide_count)]))
@@ -75,6 +79,10 @@ export interface IntegrationStatus {
   missingCloudinary: string[]
   /** AI suggestions are set up (GROQ_API_KEY). */
   ai?: boolean
+  /** Desktop app without an account: the work is saved on this computer. */
+  local?: boolean
+  /** …and its photos too (not in Cloudinary). */
+  localPhotos?: boolean
 }
 
 let statusPromise: Promise<IntegrationStatus> | null = null

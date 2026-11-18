@@ -2,6 +2,8 @@
 
 import { invalidate } from "@/lib/cache"
 import type { SlideDesign, SlideType } from "@/lib/design/types"
+import { localApi } from "@/lib/local/client"
+import { isLocalMode } from "@/lib/local/shared"
 import { getSupabase } from "@/lib/supabase/client"
 import type { TemplateRow } from "@/lib/types"
 import { toDataError } from "./errors"
@@ -9,6 +11,7 @@ import { toDataError } from "./errors"
 const COLUMNS = "id,name,slide_type,design_json,thumbnail,created_at,updated_at"
 
 export async function listTemplates(): Promise<TemplateRow[]> {
+  if (isLocalMode()) return localApi<TemplateRow[]>("GET", "templates")
   const { data, error } = await getSupabase().from("carousel_templates").select(COLUMNS).order("created_at", { ascending: false })
   if (error) throw toDataError(error)
   return (data ?? []) as TemplateRow[]
@@ -20,6 +23,11 @@ export async function createTemplate(input: {
   design: SlideDesign
   thumbnail: string | null
 }): Promise<TemplateRow> {
+  if (isLocalMode()) {
+    const row = await localApi<TemplateRow>("POST", "templates", { name: input.name, slide_type: input.slideType, design_json: input.design, thumbnail: input.thumbnail })
+    invalidate("templates")
+    return row
+  }
   const { data, error } = await getSupabase()
     .from("carousel_templates")
     .insert({ name: input.name, slide_type: input.slideType, design_json: input.design, thumbnail: input.thumbnail })
@@ -31,12 +39,22 @@ export async function createTemplate(input: {
 }
 
 export async function renameTemplate(id: string, name: string): Promise<void> {
+  if (isLocalMode()) {
+    await localApi("PATCH", `templates/${encodeURIComponent(id)}`, { name })
+    invalidate("templates")
+    return
+  }
   const { error } = await getSupabase().from("carousel_templates").update({ name }).eq("id", id)
   if (error) throw toDataError(error)
   invalidate("templates")
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
+  if (isLocalMode()) {
+    await localApi("DELETE", `templates/${encodeURIComponent(id)}`)
+    invalidate("templates")
+    return
+  }
   const { error } = await getSupabase().from("carousel_templates").delete().eq("id", id)
   if (error) throw toDataError(error)
   invalidate("templates")

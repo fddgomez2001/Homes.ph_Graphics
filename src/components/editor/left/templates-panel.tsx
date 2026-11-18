@@ -9,10 +9,24 @@ import { Button } from "@/components/ui/button"
 import { swr } from "@/lib/cache"
 import { deleteTemplate, listTemplates } from "@/lib/data/templates"
 import { normalizeDesign } from "@/lib/design/normalize"
-import { applyTemplateKeepingContent, BUILT_IN_TEMPLATES, cloneDesignWithNewIds } from "@/lib/design/templates"
+import {
+  applyTemplateKeepingContent,
+  BUILT_IN_TEMPLATES,
+  CAROUSEL_BRANDS,
+  isHomesLook,
+  carouselBrandOf,
+  carouselBrandOfSlides,
+  cloneDesignWithNewIds,
+  isCarouselCover,
+  isContentCard,
+  rebrandDesign,
+  type CarouselBrand,
+} from "@/lib/design/templates"
 import type { SlideDesign } from "@/lib/design/types"
 import type { TemplateRow } from "@/lib/types"
-import { errorMessage } from "@/lib/utils"
+import { cn, errorMessage } from "@/lib/utils"
+import { canUseCollage } from "@/lib/design/cover-collage"
+import { CollagePicker } from "../right/cover-collage"
 import { SaveTemplateDialog, templateEvents } from "../save-template-dialog"
 import { useCurrentSlide, useEditor, useEditorStore } from "../store"
 
@@ -38,6 +52,28 @@ export function TemplatesPanel() {
     toast.success("New slide added from template")
   }
 
+  // Carousel brand: the whole carousel (cover + content cards) in Homes.ph, FHI or PicklePlay colors.
+  // On the cover: the photo collage templates.
+  const onCover = useEditor((s) => s.slides[0].id === slide.id && canUseCollage(s.slides[0].design))
+  const brand = useEditor((s) => carouselBrandOfSlides(s.slides.map((sl) => sl.design)))
+  const switchBrand = async (next: CarouselBrand) => {
+    const info = CAROUSEL_BRANDS.find((b) => b.id === next)!
+    const slides = store.getState().slides
+    const changing = slides.filter((sl) => (isCarouselCover(sl.design.templateId) || isContentCard(sl.design.templateId)) && carouselBrandOf(sl.design.templateId) !== next)
+    if (!changing.length) {
+      toast.info(`This carousel already uses the ${info.name} template.`)
+      return
+    }
+    const ok = await confirm({
+      title: `Make this a ${info.name} carousel?`,
+      description: `The cover and content cards (${changing.length} slide${changing.length === 1 ? "" : "s"}) change to the ${info.name} template: its logo, swoosh, colors, gradient and footer. Your words and photos are kept; other slides stay as they are. You can undo with Ctrl+Z.`,
+      confirmLabel: `Apply ${info.name} to all`,
+    })
+    if (!ok) return
+    store.getState().updateAllDesigns((d) => rebrandDesign(d, next, ctx))
+    toast.success(`${changing.length} slide${changing.length === 1 ? "" : "s"} now use the ${info.name} template`)
+  }
+
   const applyHere = async (name: string, design: SlideDesign) => {
     const ok = await confirm({
       title: `Apply "${name}" to this slide?`,
@@ -57,12 +93,30 @@ export function TemplatesPanel() {
           <LayoutTemplate /> Save this slide
         </Button>
       </div>
-      <TemplateList
-        title="Homes.ph"
-        items={BUILT_IN_TEMPLATES.map((t) => ({ id: t.id, name: t.name, description: t.description, thumbnail: previews[t.id], design: () => t.build(ctx) }))}
-        onAdd={addSlide}
-        onApply={applyHere}
-      />
+      <BrandSwitch value={brand} onChange={(b) => void switchBrand(b)} />
+      {onCover && (
+        <section className="flex flex-col gap-2">
+          <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Cover photos</h3>
+          <CollagePicker />
+          <p className="text-[11px] leading-snug text-muted-foreground">A collage shows the cards&apos; photos on the cover: Photo 1 is Card 1&apos;s picture, and so on.</p>
+        </section>
+      )}
+      {/* The carousel's own brand first, then the other brands' templates. */}
+      {[...CAROUSEL_BRANDS].sort((a, b) => Number(b.id === brand) - Number(a.id === brand)).map((b) => (
+        <TemplateList
+          key={b.id}
+          title={b.name}
+          items={BUILT_IN_TEMPLATES.filter((t) => (t.brand ?? "homes") === b.id).map((t) => ({
+            id: t.id,
+            name: t.name,
+            description: t.description,
+            thumbnail: previews[t.id],
+            design: () => t.build(ctx),
+          }))}
+          onAdd={addSlide}
+          onApply={applyHere}
+        />
+      ))}
       <TemplateList
         title="Saved by you"
         loading={!saved}
@@ -88,6 +142,38 @@ export function TemplatesPanel() {
       />
       <SaveTemplateDialog open={saveOpen} onOpenChange={setSaveOpen} />
     </div>
+  )
+}
+
+/** Edit carousel → the brand of the whole carousel: picking another one applies its template to every cover and card. */
+function BrandSwitch({ value, onChange }: { value: CarouselBrand; onChange: (brand: CarouselBrand) => void }) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Carousel brand</h3>
+      <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Carousel brand">
+        {CAROUSEL_BRANDS.map((b) => (
+          <button
+            key={b.id}
+            type="button"
+            role="radio"
+            aria-checked={value === b.id}
+            onClick={() => onChange(b.id)}
+            title={value === b.id ? `This carousel uses the ${b.name} template` : `Apply the ${b.name} template to all slides`}
+            className={cn(
+              "flex min-w-0 flex-col items-center gap-1 rounded-lg border bg-card px-1 py-2 text-center transition",
+              value === b.id ? "border-transparent ring-2 ring-primary" : "hover:border-foreground/30",
+            )}
+          >
+            <span className="flex size-9 items-center justify-center rounded-md p-1" style={{ background: isHomesLook(b.id) ? "#FFFFFF" : b.dark }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={b.logo} alt="" className="size-full object-contain" draggable={false} />
+            </span>
+            <span className="w-full truncate text-[11px] leading-tight font-medium">{b.id === "fhi" ? "FHI Global" : b.id === "gensan" ? "Gensan" : b.name}</span>
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] leading-snug text-muted-foreground">Pick a brand to apply its template to the cover and all cards. Words and photos are kept.</p>
+    </section>
   )
 }
 
