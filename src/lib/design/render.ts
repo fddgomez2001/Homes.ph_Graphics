@@ -4,6 +4,7 @@ import Konva from "konva"
 import { blurBackdrop, blurredCopy } from "./blur-fill"
 import { slotDef } from "./cover-collage"
 import { ensureFonts } from "./fonts"
+import { filterCss, filteredBitmap } from "./filters"
 import { glowBitmap, isGlowShape } from "./glow"
 import { isAutoLogo, logoForLuminance, logoSource, meanLuminance, type ResolvedLogo } from "./logo"
 import { loadImage } from "./image-cache"
@@ -204,8 +205,10 @@ function buildNode(el: DesignElement, images: Map<string, HTMLImageElement>): Ko
         // A zoomed-out photo card: its blurred copy fills the frame behind it.
         const backdrop = blurBackdrop(el, img)
         if (backdrop) group.add(new Konva.Image({ ...backdrop, sceneFunc: highQualityImageSceneFunc }))
-        // A backdrop that follows the photo: its blurred copy.
-        const shown = el.blurred ? blurredCopy(img) : img
+        // A backdrop that follows the photo: its blurred copy; a filter (1.54) on top.
+        const css = filterCss(el.filter)
+        const unfiltered = el.blurred ? blurredCopy(img) : img
+        const shown = css ? (filteredBitmap(unfiltered, css) as unknown as HTMLImageElement) : unfiltered
         const { crop, ...rect } = imageDrawAttrs(el, el.blurred ? { naturalWidth: shown.width, naturalHeight: shown.height } : img)
         group.add(new Konva.Image({ image: shown, ...rect, crop, ...imageShadowAttrs(el), sceneFunc: highQualityImageSceneFunc }))
       }

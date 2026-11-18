@@ -1,4 +1,5 @@
 import type { PostFields } from "@/lib/brand-templates/types"
+import type { ImageFilter } from "./filters"
 
 /** Every cover and card is designed on an exact 1254 × 1254 logical-pixel canvas. */
 export const CANVAS_SIZE = 1254
@@ -60,10 +61,13 @@ interface BaseElement {
 export interface ImageElement extends BaseElement {
   type: "image"
   /**
-   * Brand posts (1.53): one of the template's two layers, drawn from its SVG: "back" (background, photo, fades)
-   * and "front" (logo, text, footer). Layers added in the editor go between them or over them.
+   * Brand posts: one of the template's own layers, drawn from its SVG (1.54: its top-level part, e.g.
+   * "layer-background", "layer-photo", "text-block", "footer"; 1.53 had "back" / "front"). Layers added in the
+   * editor go under, between or over them.
    */
-  templatePart?: "back" | "front" | null
+  templatePart?: string | null
+  /** The picture's filter (1.54): Vivid, Warm, B&W… or brightness, contrast, saturation, warmth, blur. */
+  filter?: ImageFilter | null
   height: number
   /** Full-resolution original URL (Cloudinary secure_url or a local blob: URL). null = empty frame. */
   src: string | null

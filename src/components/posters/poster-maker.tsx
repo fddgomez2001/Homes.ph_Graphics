@@ -50,6 +50,7 @@ import {
   newsSubtextLook,
   newsSubtextState,
   newsTag,
+  newsPhotoFilter,
   storeNewsPhoto,
   updateNewsArticle,
   type NewsChange,
@@ -153,7 +154,7 @@ import { pageSlug, samePage } from "@/lib/ai/homes-places"
 import { brandPostId, brandPostTemplate, isPostKind, type PostBrand } from "@/lib/brand-templates/catalog"
 import type { BrandPostKind } from "@/lib/brand-templates/types"
 import { BrandPostEditor } from "./brand-post-editor"
-import { PostKindNav, rememberKind, readLastKind, TemplateGallery } from "./post-kind-nav"
+import { PhotoFilterChips, PostKindNav, rememberKind, readLastKind, TemplateGallery } from "./post-kind-nav"
 
 /** The last photographer's name typed (filled in when the credit is turned on). */
 const CREDIT_NAME_KEY = "dcm-poster-credit-name"
@@ -1381,6 +1382,15 @@ function PosterEditor({
               Or drop it on the preview, or click the preview and press Ctrl+V. Then drag it on the preview to move it; scroll or pinch on it to zoom (zoom
               out to show the whole photo over a blurred copy).
             </p>
+            {hasPhoto && (
+              <PhotoFilterChips
+                value={newsPhotoFilter(base)}
+                onChange={(photoFilter) => {
+                  setBase((b) => applyNewsChange(b, { photoFilter }))
+                  if (projectIdRef.current || creating.current) void save({ photoFilter })
+                }}
+              />
+            )}
             <EnhancePanel
               enhancing={enhancing}
               enhanced={!!enhanced && newsPhotoFrame(base)?.src === enhanced.result.src}

@@ -10,6 +10,7 @@ import { imageElement, NEWS_HEADLINE_PLACEHOLDER, POSTER_CREDIT_PREFIX, POSTER_S
 import { DESIGN_VERSION, type DesignElement, type ImageElement, type SlideDesign, type TextElement } from "@/lib/design/types"
 import { brandPostTemplate, type BrandPostTemplate } from "./catalog"
 import { carryLayers, partElement } from "./layers"
+import type { ImageFilter } from "@/lib/design/filters"
 import type { EngagementFill, PosterFill } from "./fill"
 import type { FillPhoto, PostFields } from "./types"
 
@@ -55,7 +56,7 @@ export function buildBrandPost(id: string, content?: { headline?: string }): Sli
       ...(info.subtext ? [textElement({ name: "Subtext", role: "subtitle", text: "", x: 56, y: 1180, width: info.width - 112, fontSize: 30, visible: false, highlight: { phrases: [], fill: GOLD } })] : []),
       textElement({ name: "Photo Credit", role: "label", text: POSTER_CREDIT_PREFIX, x: 56, y: 30, width: 700, fontSize: 15, visible: false }),
     ]
-    return { ...base, elements: withParts(elements, info.width, info.height), brandPost: { template: t.file, fields: info.tag ? { tag: info.tag } : {} } }
+    return { ...base, elements: withParts(elements, info.layers, info.width, info.height), brandPost: { template: t.file, fields: info.tag ? { tag: info.tag } : {} } }
   }
 
   // Did You Know / engagement: the sample texts to start from.
@@ -65,14 +66,13 @@ export function buildBrandPost(id: string, content?: { headline?: string }): Sli
     elements.push(imageElement({ name: i === 1 ? "Photo" : `Photo ${i}`, role: i === 1 ? "background" : "decoration", x: 56, y: 600, width: info.width - 112, height: 600, fit: "cover", locked: true }))
   }
   elements.push(headline(postTitleOf(fields), []))
-  return { ...base, elements: withParts(elements, info.width, info.height), brandPost: { template: t.file, fields } }
+  return { ...base, elements: withParts(elements, info.layers, info.width, info.height), brandPost: { template: t.file, fields } }
 }
 
-/** The template's texts and photos (marked as its own), then its two layers (1.53: layers can go between them). */
-const withParts = (carriers: DesignElement[], width: number, height: number): DesignElement[] => [
+/** The template's texts and photos (marked as its own), then its layers, as in its SVG (1.54). */
+const withParts = (carriers: DesignElement[], layers: readonly string[], width: number, height: number): DesignElement[] => [
   ...carriers.map((e) => ({ ...e, carrier: true }) as DesignElement),
-  partElement("back", width, height),
-  partElement("front", width, height),
+  ...layers.map((id) => partElement(id, width, height)),
 ]
 
 /** A Did You Know / engagement post's name: its title, else its question, else its text (markup taken out). */
@@ -187,6 +187,11 @@ export function withPostFields(design: SlideDesign, patch: Partial<PostFields>):
     brandPost: { template: design.brandPost!.template, fields },
     elements: design.elements.map((el) => (el.type === "text" && el.name === "Headline" && own(design, el) ? ({ ...el, text: title } as TextElement) : el)),
   }
+}
+
+/** A post's photo's filter (1.54); null: none. */
+export function withPhotoFilter(design: SlideDesign, name: string, filter: ImageFilter | null): SlideDesign {
+  return { ...design, elements: design.elements.map((el) => (el.type === "image" && el.name === name && own(design, el) ? { ...el, filter } : el)) }
 }
 
 /** A photo put in a post's photo `name` ("Photo", "Photo 2"); null takes it out. */

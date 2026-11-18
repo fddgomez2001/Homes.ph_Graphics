@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { samePage } from "@/lib/ai/homes-places"
 import { brandPostId, brandPostTemplate, firstTemplate, type PostBrand } from "@/lib/brand-templates/catalog"
-import { buildBrandPost, photoNamed, SECOND_PHOTO, switchPostTemplate, withNamedPhoto, withPostFields } from "@/lib/brand-templates/posts"
+import { buildBrandPost, photoNamed, SECOND_PHOTO, switchPostTemplate, withNamedPhoto, withPhotoFilter, withPostFields } from "@/lib/brand-templates/posts"
 import type { BrandPostKind, PhotoFocus, PostFields } from "@/lib/brand-templates/types"
 import { createBrandPost, saveBrandPost } from "@/lib/data/brand-posts"
 import { storeNewsPhoto, type NewsPhoto } from "@/lib/data/news"
@@ -30,7 +30,7 @@ import { cn, errorMessage } from "@/lib/utils"
 import { writeBrandPostText } from "@/lib/ai/client"
 import type { BrandPostAiField } from "@/lib/ai/brand-post-ai"
 import { useDeletePoster } from "./poster-board"
-import { TemplateGallery } from "./post-kind-nav"
+import { PhotoFilterChips, TemplateGallery } from "./post-kind-nav"
 import { brandForPage, dayQuery, inScope, nextPosterTime, posterBrandOf, posterPageOf, ymd, type PosterBrand } from "./poster-shared"
 
 const isHomesBrand = (b: PosterBrand) => b === "homes" || b === "gensan"
@@ -627,6 +627,7 @@ export function BrandPostEditor({
                   }}
                 />
               </div>
+              {photo?.src && <PhotoFilterChips value={photo.filter} onChange={(filter) => change(withPhotoFilter(designRef.current, name, filter), true)} label="Filter" />}
               {photo?.src && (
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <span>Keep in view:</span>

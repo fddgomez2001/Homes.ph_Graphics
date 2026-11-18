@@ -14,6 +14,8 @@ export type TemplateFolder = "homes" | "fhi" | "pickleplay" | "bayanihan"
 export interface TemplateInfo {
   width: number
   height: number
+  /** Its layers (1.54): the SVG's top-level parts, bottom to top ("layer-background", "layer-photo", "text-block"…). */
+  layers: string[]
   /** News posters: the photo's box ("contain": the whole photo over a blurred copy, the framed template). */
   photo?: { x: number; y: number; width: number; height: number; fit: "cover" | "contain"; radius: number }
   /** News posters: the headline's lines (artist templates: one line). */

@@ -8,6 +8,8 @@
  * - the AI upscaler (Real-ESRGAN) is photo-enhance.ts's enhancePhoto.
  */
 import { clearBackground } from "@/lib/ads/court-logo"
+import { getAiKeys } from "@/lib/ai/client"
+import { AI_HEADERS } from "@/lib/ai/types"
 
 export class ToolCancelled extends Error {
   constructor() {
@@ -146,4 +148,48 @@ export async function autoLightColor(picture: Blob): Promise<Blob> {
   data.data.set(sharp)
   ctx.putImageData(data, 0, 0)
   return hasSeeThrough(px) ? toBlob(canvas, "image/png") : toBlob(canvas, "image/jpeg", 0.95)
+}
+
+/** Which image AI the picture goes to: the saved Gemini key first, else OpenAI's (null: neither saved). */
+export function imageAi(): { provider: "gemini" | "openai"; key: string; name: string } | null {
+  const keys = getAiKeys()
+  if (keys.gemini?.key) return { provider: "gemini", key: keys.gemini.key, name: "Gemini" }
+  if (keys.openai?.key) return { provider: "openai", key: keys.openai.key, name: "OpenAI" }
+  return null
+}
+
+/**
+ * AI Enhance (1.54): the picture sent to an image AI with the person's own key (Gemini's image model or OpenAI's
+ * gpt-image-1), which gives it back sharper, cleaner and better lit, nothing added or changed (it costs what that
+ * service charges for one picture). Big pictures are sent at 2048 px.
+ */
+export async function aiEnhance(picture: Blob, signal?: AbortSignal): Promise<{ blob: Blob; model: string; by: string }> {
+  const ai = imageAi()
+  if (!ai) throw new Error("AI Enhance uses your own Gemini or OpenAI key: add one in Settings → AI.")
+  const { canvas } = await pixelsOf(picture)
+  const k = Math.min(1, 2048 / Math.max(canvas.width, canvas.height))
+  const small = document.createElement("canvas")
+  small.width = Math.max(1, Math.round(canvas.width * k))
+  small.height = Math.max(1, Math.round(canvas.height * k))
+  const ctx = small.getContext("2d")!
+  ctx.imageSmoothingQuality = "high"
+  ctx.drawImage(canvas, 0, 0, small.width, small.height)
+  const png = hasSeeThrough(ctx.getImageData(0, 0, small.width, small.height).data)
+  const sent = await toBlob(small, png ? "image/png" : "image/jpeg", 0.92)
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result).split(",")[1] ?? "")
+    r.onerror = () => reject(new Error("The picture couldn't be read."))
+    r.readAsDataURL(sent)
+  })
+  const res = await fetch("/api/ai/image-enhance", {
+    method: "POST",
+    headers: { "content-type": "application/json", [AI_HEADERS.provider]: ai.provider, [AI_HEADERS.key]: ai.key },
+    body: JSON.stringify({ image: base64, mime: sent.type }),
+    signal,
+  })
+  const body = (await res.json().catch(() => ({}))) as { image?: string; mime?: string; model?: string; error?: string }
+  if (!res.ok || !body.image) throw new Error(body.error || `The AI couldn't enhance the picture (${res.status}).`)
+  const bytes = Uint8Array.from(atob(body.image), (c) => c.charCodeAt(0))
+  return { blob: new Blob([bytes], { type: body.mime || "image/png" }), model: body.model || ai.name, by: ai.name }
 }

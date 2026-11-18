@@ -5,6 +5,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-01-classic-left": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -24,6 +33,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-02-classic-center": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -43,6 +61,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-03-framed": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo-background",
+   "photo-frame",
+   "frame-border",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 48,
    "y": 186,
@@ -62,6 +90,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-04-spotlight": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -81,6 +118,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-05-split": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-split-background",
+   "layer-photo",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -100,6 +146,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-06-card": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-card",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -119,6 +175,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-07-tag": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -138,6 +203,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-08-accent-bar": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "accent-bar",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -157,6 +232,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-09-artist-left": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -176,6 +260,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-10-artist-center": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -195,6 +288,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/news-11-headline-credit": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "text-block",
+   "photo-credit",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -214,6 +316,13 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/dyk-02-did-you-know": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": false,
@@ -225,6 +334,13 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/dyk-08-did-you-know-facts": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "facts",
   "photos": 0,
   "background": false,
@@ -241,6 +357,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/eng-01-memory-question": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -252,6 +377,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/eng-03-throwback": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -264,6 +398,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/eng-04-this-or-that": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "two-col",
   "photos": 2,
   "background": true,
@@ -281,6 +424,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/eng-05-then-and-now": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "two-row",
   "photos": 2,
   "background": true,
@@ -297,6 +449,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/eng-06-trivia-quiz": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "quiz",
   "photos": 1,
   "background": true,
@@ -314,6 +475,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/eng-07-guess-the-place": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -328,6 +498,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "homes/eng-09-question-card": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -340,6 +519,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-01-classic-left": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -359,6 +547,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-02-classic-center": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -378,6 +575,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-03-framed": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo-background",
+   "photo-frame",
+   "frame-border",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 48,
    "y": 186,
@@ -397,6 +604,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-04-spotlight": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -416,6 +632,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-05-split": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-split-background",
+   "layer-photo",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -435,6 +660,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-06-card": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-card",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -454,6 +689,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-07-tag": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -473,6 +717,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-08-accent-bar": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "accent-bar",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -492,6 +746,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-09-artist-left": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -511,6 +774,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-10-artist-center": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -530,6 +802,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/news-11-headline-credit": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "brand-logo",
+   "text-block",
+   "photo-credit",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -549,6 +830,14 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/dyk-02-did-you-know": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": false,
@@ -560,6 +849,14 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/dyk-08-did-you-know-facts": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "facts",
   "photos": 0,
   "background": false,
@@ -576,6 +873,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/eng-01-memory-question": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -587,6 +893,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/eng-03-throwback": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -599,6 +914,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/eng-04-this-or-that": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "two-col",
   "photos": 2,
   "background": true,
@@ -616,6 +940,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/eng-05-then-and-now": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "two-row",
   "photos": 2,
   "background": true,
@@ -632,6 +965,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/eng-06-trivia-quiz": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "quiz",
   "photos": 1,
   "background": true,
@@ -649,6 +991,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/eng-07-guess-the-place": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -663,6 +1014,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "fhi/eng-09-question-card": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -675,6 +1035,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-01-classic-left": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor-ball",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -694,6 +1064,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-02-classic-center": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor-ball",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -713,6 +1093,17 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-03-framed": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo-background",
+   "photo-frame",
+   "frame-border",
+   "decor-ball",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 48,
    "y": 186,
@@ -732,6 +1123,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-04-spotlight": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor-ball",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -751,6 +1152,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-05-split": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-split-background",
+   "layer-photo",
+   "decor-ball",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -770,6 +1181,17 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-06-card": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor-ball",
+   "brand-logo",
+   "photo-credit",
+   "text-card",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -789,6 +1211,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-07-tag": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor-ball",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -808,6 +1240,17 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-08-accent-bar": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor-ball",
+   "brand-logo",
+   "photo-credit",
+   "accent-bar",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -827,6 +1270,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-09-artist-left": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor-ball",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -846,6 +1299,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-10-artist-center": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor-ball",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -865,6 +1328,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/news-11-headline-credit": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor-ball",
+   "brand-logo",
+   "text-block",
+   "photo-credit",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -884,6 +1357,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/dyk-02-did-you-know": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "layer-tint",
+   "decor-ball",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": false,
@@ -895,6 +1377,15 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/dyk-08-did-you-know-facts": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "layer-tint",
+   "decor-ball",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "facts",
   "photos": 0,
   "background": false,
@@ -911,6 +1402,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/eng-01-memory-question": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "decor-ball",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -922,6 +1423,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/eng-03-throwback": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "decor-ball",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -934,6 +1445,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/eng-04-this-or-that": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "decor-ball",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "two-col",
   "photos": 2,
   "background": true,
@@ -951,6 +1472,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/eng-05-then-and-now": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "decor-ball",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "two-row",
   "photos": 2,
   "background": true,
@@ -967,6 +1498,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/eng-06-trivia-quiz": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "decor-ball",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "quiz",
   "photos": 1,
   "background": true,
@@ -984,6 +1525,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/eng-07-guess-the-place": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "decor-ball",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -998,6 +1549,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "pickleplay/eng-09-question-card": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "photo-background",
+   "layer-tint",
+   "decor-ball",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": true,
@@ -1010,6 +1571,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-01-classic-left": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -1029,6 +1600,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-02-classic-center": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -1048,6 +1629,17 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-03-framed": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "frame-accents",
+   "photo-frame",
+   "frame-border",
+   "decor",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 77.27,
    "y": 214.93,
@@ -1067,6 +1659,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-04-spotlight": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -1086,6 +1688,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-05-split": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-split-background",
+   "layer-photo",
+   "decor",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -1105,6 +1717,17 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-06-card": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor",
+   "brand-logo",
+   "photo-credit",
+   "text-card",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -1124,6 +1747,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-07-tag": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -1143,6 +1776,17 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-08-accent-bar": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor",
+   "brand-logo",
+   "photo-credit",
+   "accent-bar",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -1162,6 +1806,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-09-artist-left": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -1181,6 +1835,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-10-artist-center": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor",
+   "brand-logo",
+   "photo-credit",
+   "text-block",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -1200,6 +1864,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/news-11-headline-credit": {
   "width": 1080,
   "height": 1350,
+  "layers": [
+   "layer-background",
+   "layer-photo",
+   "layer-overlay",
+   "decor",
+   "brand-logo",
+   "text-block",
+   "photo-credit",
+   "footer"
+  ],
   "photo": {
    "x": 0,
    "y": 0,
@@ -1219,6 +1893,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/dyk-02-did-you-know": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "decor-squares",
+   "decor-stripes-top-right",
+   "decor-stripes-bottom-left",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": false,
@@ -1230,6 +1914,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/dyk-08-did-you-know-facts": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "decor-squares",
+   "decor-stripes-top-right",
+   "decor-stripes-bottom-left",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "facts",
   "photos": 0,
   "background": false,
@@ -1246,6 +1940,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/eng-01-memory-question": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "decor-squares",
+   "decor-stripes-top-right",
+   "decor-stripes-bottom-left",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": false,
@@ -1257,6 +1961,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/eng-03-throwback": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "decor-squares",
+   "decor-stripes-top-right",
+   "decor-stripes-bottom-left",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": false,
@@ -1269,6 +1983,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/eng-04-this-or-that": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "decor-squares",
+   "decor-stripes-top-right",
+   "decor-stripes-bottom-left",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "two-col",
   "photos": 2,
   "background": false,
@@ -1286,6 +2010,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/eng-05-then-and-now": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "decor-squares",
+   "decor-stripes-top-right",
+   "decor-stripes-bottom-left",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "two-row",
   "photos": 2,
   "background": false,
@@ -1302,6 +2036,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/eng-06-trivia-quiz": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "decor-squares",
+   "decor-stripes-top-right",
+   "decor-stripes-bottom-left",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "quiz",
   "photos": 1,
   "background": false,
@@ -1319,6 +2063,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/eng-07-guess-the-place": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "decor-squares",
+   "decor-stripes-top-right",
+   "decor-stripes-bottom-left",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": false,
@@ -1333,6 +2087,16 @@ export const TEMPLATE_MANIFEST: Record<string, TemplateInfo> = {
  "bayanihan/eng-09-question-card": {
   "width": 1126,
   "height": 1408,
+  "layers": [
+   "layer-background",
+   "decor-squares",
+   "decor-stripes-top-right",
+   "decor-stripes-bottom-left",
+   "brand-logo",
+   "photo-area",
+   "content",
+   "footer"
+  ],
   "layout": "single",
   "photos": 1,
   "background": false,

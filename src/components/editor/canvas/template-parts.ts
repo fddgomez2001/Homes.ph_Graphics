@@ -4,10 +4,8 @@ import { useEffect, useRef, useState } from "react"
 import { isBrandPostDesign } from "@/lib/brand-templates/posts"
 import type { SlideDesign } from "@/lib/design/types"
 
-export interface TemplateParts {
-  back?: HTMLCanvasElement
-  front?: HTMLCanvasElement
-}
+/** The template's layers drawn (by their id in the SVG). */
+export type TemplateParts = Record<string, HTMLCanvasElement>
 
 /**
  * A brand post's two template layers (1.53), drawn from its SVG for the editor's canvas: drawn again when the
@@ -24,6 +22,7 @@ export function useTemplateParts(design: SlideDesign): TemplateParts | null {
     designRef.current = design
   })
   const [parts, setParts] = useState<TemplateParts>({})
+  // (Drawn again from the template whenever its texts or photo change: a dozen layers take a second.)
   useEffect(() => {
     if (!key) return
     let cancelled = false

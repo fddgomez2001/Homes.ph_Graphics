@@ -4,6 +4,7 @@ import type { BrandPostData, DesignElement, Fill, ImageElement, PhotoSlot, Shape
 import { CANVAS_SIZE, DESIGN_VERSION, MIN_FRAME_ZOOM, SUBTEXT_STYLES } from "./types"
 import { getCollageLayout, slotDef } from "./cover-collage"
 import { withTemplateLayers } from "@/lib/brand-templates/layers"
+import { normalizeFilter } from "./filters"
 import { POSTER_PICKLEBALL_SRC, SWOOSH_LEFT_SRC, SWOOSH_SRC } from "./constants"
 import {
   isPosterSubtext,
@@ -319,7 +320,8 @@ function normalizeElement(raw: unknown): DesignElement | null {
       ...(num(i.cornerRadius, 0) > 0 ? { cornerRadius: num(i.cornerRadius, 0) } : {}),
       ...(i.blurFill === true && i.fit !== "contain" ? { blurFill: true } : {}),
       ...(i.blurred === true ? { blurred: true } : {}),
-      ...(i.templatePart === "back" || i.templatePart === "front" ? { templatePart: i.templatePart } : {}),
+      ...(typeof i.templatePart === "string" && /^[a-z0-9-]{1,40}$/.test(i.templatePart) ? { templatePart: i.templatePart } : {}),
+      ...(normalizeFilter(i.filter) ? { filter: normalizeFilter(i.filter) } : {}),
       ...normalizeSlot(i.slot),
       // Only a blur-fill photo zooms out below 1 (its empty space shows the blurred photo).
       zoom: Math.max(i.blurFill === true && i.fit !== "contain" ? MIN_FRAME_ZOOM : 1, num(i.zoom, 1)),

@@ -25,6 +25,7 @@ import { brandPostTemplate } from "@/lib/brand-templates/catalog"
 import { isBrandPostDesign } from "@/lib/brand-templates/posts"
 import { carryLayers } from "@/lib/brand-templates/layers"
 import { fitZoom } from "@/lib/design/geometry"
+import type { ImageFilter } from "@/lib/design/filters"
 import { createProject, getProject, getProjectSlides, saveProject, updateProject } from "./projects"
 import { DataError } from "./errors"
 
@@ -89,6 +90,8 @@ export interface NewsChange {
   rentsouqLayout?: "portrait" | "square"
   /** Brand news posters (1.52): the tag pill over the headline (template 07; "" = none). */
   tag?: string
+  /** The poster's photo filter (1.54): Vivid, Warm, B&W…; null = none. */
+  photoFilter?: ImageFilter | null
 }
 
 const photoOf = (design: SlideDesign) => design.elements.find((e): e is ImageElement => e.type === "image" && e.role === "background")
@@ -316,6 +319,11 @@ function withPhotoFrame(design: SlideDesign, frame: PhotoFrame): SlideDesign {
   }
 }
 
+/** The poster's photo filter (1.54), or null. */
+export function newsPhotoFilter(design: SlideDesign): ImageFilter | null {
+  return (cardPhotoOf(design) ?? photoOf(design))?.filter ?? null
+}
+
 /** The Facebook page a post is for (Homes.ph posters), or "". */
 export function newsPage(design: SlideDesign): string {
   return design.page?.trim() ?? ""
@@ -411,6 +419,10 @@ export function applyNewsChange(design: SlideDesign, change: NewsChange): SlideD
     // Keep where the photo was moved / zoomed to in the card.
     const frame = newsPhotoFrame(design)
     if (frame && photo?.src) next = withPhotoFrame(next, frame)
+    // And its filter (1.54).
+    const oldCard = cardPhotoOf(design) ?? photo
+    const newCard = cardPhotoOf(next) ?? photoOf(next)
+    if (oldCard?.filter && newCard) next = { ...next, elements: next.elements.map((el) => (el.id === newCard.id ? { ...el, filter: oldCard.filter } : el)) }
     // Another brand template: the layers added in the editor stay (1.53).
     if (isBrandPostDesign(design) && isBrandPostDesign(next)) next = carryLayers(design, next)
     // The Rentsouq.ae version keeps its own template (New ↔ Old on FHI doesn't change it), and its own edits.
@@ -455,6 +467,10 @@ export function applyNewsChange(design: SlideDesign, change: NewsChange): SlideD
   }
   if (change.rentsouqLayout !== undefined) next = { ...next, rentsouqLayout: change.rentsouqLayout === "square" ? "square" : null }
   if (change.tag !== undefined && isBrandPostDesign(next)) next = withTag(next, change.tag)
+  if (change.photoFilter !== undefined) {
+    const card = cardPhotoOf(next) ?? photoOf(next)
+    if (card) next = { ...next, elements: next.elements.map((el) => (el.id === card.id ? { ...el, filter: change.photoFilter ?? null } : el)) }
+  }
   return next
 }
 

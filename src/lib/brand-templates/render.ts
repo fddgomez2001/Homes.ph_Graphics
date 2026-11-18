@@ -10,6 +10,7 @@ import type { SlideDesign } from "@/lib/design/types"
 import { brandPostTemplate, templateSrc } from "./catalog"
 import { fillEngagement, fillPoster } from "./fill"
 import { TEMPLATE_FONTS } from "./manifest"
+import { filterCss } from "@/lib/design/filters"
 import { engagementFillOf, photoNamed, posterFillOf, SECOND_PHOTO } from "./posts"
 
 const SVG_NS = "http://www.w3.org/2000/svg"
@@ -103,9 +104,10 @@ const photos = new Map<string, Promise<string>>()
 /** The longest side a photo is put in the picture at (sharp at 3× zoom on a 1080 px poster). */
 const PHOTO_MAX = 2600
 
-/** A photo as a picture inside the SVG (smaller when it's very big). */
-function photoDataUrl(src: string) {
-  let p = photos.get(src)
+/** A photo as a picture inside the SVG (smaller when it's very big), with its filter (1.54) when it has one. */
+function photoDataUrl(src: string, filter = "") {
+  const key = `${src}|${filter}`
+  let p = photos.get(key)
   if (!p) {
     p = loadImage(src).then((img) => {
       const k = Math.min(1, PHOTO_MAX / Math.max(img.naturalWidth, img.naturalHeight))
@@ -114,12 +116,13 @@ function photoDataUrl(src: string) {
       canvas.height = Math.max(1, Math.round(img.naturalHeight * k))
       const ctx = canvas.getContext("2d")!
       ctx.imageSmoothingQuality = "high"
+      if (filter) ctx.filter = filter
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
       // A see-through picture stays PNG; photos are JPEG (much smaller).
       return canvas.toDataURL(seeThrough(img) ? "image/png" : "image/jpeg", 0.93)
     })
-    p.catch(() => photos.delete(src))
-    photos.set(src, p)
+    p.catch(() => photos.delete(key))
+    photos.set(key, p)
     // Only the latest few are kept.
     if (photos.size > 12) photos.delete(photos.keys().next().value!)
   }
@@ -142,10 +145,10 @@ function seeThrough(img: HTMLImageElement) {
   return false
 }
 
-async function photoOrNull(src: string | null | undefined, tolerate: boolean): Promise<string | null> {
+async function photoOrNull(src: string | null | undefined, tolerate: boolean, filter = ""): Promise<string | null> {
   if (!src) return null
   try {
-    return await photoDataUrl(src)
+    return await photoDataUrl(src, filter)
   } catch (e) {
     if (tolerate) return null
     throw new BrandPostError(`The photo could not be loaded. ${(e as Error).message}`)
@@ -169,24 +172,23 @@ function host() {
 export interface BrandPostRenderOptions {
   /** Draw without a photo that can't be loaded (previews) instead of failing. */
   tolerateMissingImages?: boolean
-  /** Only one of the template's two layers (1.53): "back" (background, photo, fades) or "front" (logo, texts, footer). */
-  part?: "back" | "front"
+  /** Only one of the template's layers (its top-level part's id, e.g. "layer-photo", "text-block"). */
+  part?: string
 }
 
-/** The template's front layer: what's drawn over the photo (every template names these the same). */
-const FRONT = new Set(["brand-logo", "photo-credit", "text-card", "accent-bar", "text-block", "content", "footer"])
-
-/** The post as a finished SVG (fonts and photos inside it). */
-export async function brandPostSvg(design: SlideDesign, options: BrandPostRenderOptions = {}): Promise<string> {
+/** The template filled with the post (its fonts and photos inside it), not yet a picture. */
+async function filledSvg(design: SlideDesign, options: BrandPostRenderOptions): Promise<SVGSVGElement> {
   const t = brandPostTemplate(design.templateId)
   if (!t || !design.brandPost) throw new BrandPostError("This post's template is unknown.")
   const file = t.file
   const source = await loadTemplate(file)
   const tolerate = !!options.tolerateMissingImages
+  const p1 = photoNamed(design, "Photo")
+  const p2 = photoNamed(design, SECOND_PHOTO)
   const [, photo1, photo2, css] = await Promise.all([
     loadFonts(source),
-    photoOrNull(photoNamed(design, "Photo")?.src, tolerate),
-    photoOrNull(photoNamed(design, SECOND_PHOTO)?.src, tolerate),
+    photoOrNull(p1?.src, tolerate, filterCss(p1?.filter)),
+    photoOrNull(p2?.src, tolerate, filterCss(p2?.filter)),
     fontCss(source),
   ])
   const doc = new DOMParser().parseFromString(source, "image/svg+xml")
@@ -210,39 +212,36 @@ export async function brandPostSvg(design: SlideDesign, options: BrandPostRender
   defs.prepend(style)
   svg.setAttribute("width", String(t.info.width))
   svg.setAttribute("height", String(t.info.height))
-  // One layer only: the other one's parts are hidden (the front layer is see-through around them).
-  if (options.part) {
-    for (const child of Array.from(svg.children)) {
-      const tag = child.tagName.toLowerCase()
-      if (tag === "defs" || tag === "style") continue
-      if (FRONT.has(child.id) !== (options.part === "front")) child.setAttribute("display", "none")
-    }
+  return svg
+}
+
+/** The filled template as SVG text; `part`: only that layer (the others taken out, its gradients and masks kept). */
+function serialize(svg: SVGSVGElement, part?: string) {
+  if (!part) return new XMLSerializer().serializeToString(svg)
+  const copy = svg.cloneNode(true) as SVGSVGElement
+  for (const child of Array.from(copy.children)) {
+    const tag = child.tagName.toLowerCase()
+    if (tag !== "defs" && tag !== "style" && child.id !== part) child.remove()
   }
-  return new XMLSerializer().serializeToString(svg)
+  return new XMLSerializer().serializeToString(copy)
 }
 
-/** The template's two layers, each on its own canvas (the editor shows them, the export stacks layers between them). */
-export async function renderBrandPostParts(design: SlideDesign, options: BrandPostRenderOptions & { pixelRatio?: number } = {}) {
-  const [back, front] = await Promise.all([
-    renderBrandPostToCanvas(design, { ...options, part: "back" }),
-    renderBrandPostToCanvas(design, { ...options, part: "front" }),
-  ])
-  return { back, front }
+/** The post as a finished SVG (fonts and photos inside it), or one of its layers. */
+export async function brandPostSvg(design: SlideDesign, options: BrandPostRenderOptions = {}): Promise<string> {
+  return serialize(await filledSvg(design, options), options.part)
 }
 
-/** The post drawn on a canvas, `pixelRatio` × its size (1 = 1080 × 1350 / 1126 × 1408). */
-export async function renderBrandPostToCanvas(design: SlideDesign, options: BrandPostRenderOptions & { pixelRatio?: number } = {}): Promise<HTMLCanvasElement> {
-  const svg = await brandPostSvg(design, options)
-  const ratio = options.pixelRatio ?? 1
-  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }))
+/** SVG text drawn on a canvas, `ratio` × the post's size. */
+async function draw(svgText: string, width: number, height: number, ratio: number): Promise<HTMLCanvasElement> {
+  const url = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }))
   try {
     const img = new Image()
     img.decoding = "sync"
     img.src = url
     await img.decode()
     const canvas = document.createElement("canvas")
-    canvas.width = Math.round(design.width * ratio)
-    canvas.height = Math.round(design.height * ratio)
+    canvas.width = Math.round(width * ratio)
+    canvas.height = Math.round(height * ratio)
     const ctx = canvas.getContext("2d")!
     ctx.imageSmoothingQuality = "high"
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
@@ -252,4 +251,21 @@ export async function renderBrandPostToCanvas(design: SlideDesign, options: Bran
   } finally {
     URL.revokeObjectURL(url)
   }
+}
+
+/**
+ * The template's layers (1.54: each of its top-level parts, as in the SVG), each on its own canvas: the editor
+ * shows them, the export stacks the post's own layers between them. Filled once, drawn layer by layer.
+ */
+export async function renderBrandPostParts(design: SlideDesign, options: BrandPostRenderOptions & { pixelRatio?: number } = {}): Promise<Record<string, HTMLCanvasElement>> {
+  const svg = await filledSvg(design, options)
+  const ids = brandPostTemplate(design.templateId)?.info.layers ?? []
+  const ratio = options.pixelRatio ?? 1
+  const canvases = await Promise.all(ids.map((id) => draw(serialize(svg, id), design.width, design.height, ratio)))
+  return Object.fromEntries(ids.map((id, i) => [id, canvases[i]]))
+}
+
+/** The post drawn on a canvas, `pixelRatio` × its size (1 = 1080 × 1350 / 1126 × 1408). */
+export async function renderBrandPostToCanvas(design: SlideDesign, options: BrandPostRenderOptions & { pixelRatio?: number } = {}): Promise<HTMLCanvasElement> {
+  return draw(await brandPostSvg(design, options), design.width, design.height, options.pixelRatio ?? 1)
 }

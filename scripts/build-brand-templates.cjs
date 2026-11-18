@@ -76,11 +76,34 @@ function textOf(svg, open) {
     .replace(/\*\s+\*/g, " ")
 }
 
+/** The ids of the SVG's top-level parts (not defs / style), bottom to top. */
+function rootLayers(svg) {
+  const body = svg.slice(svg.indexOf(">", svg.indexOf("<svg")) + 1, svg.lastIndexOf("</svg>"))
+  const ids = []
+  let depth = 0
+  const re = /<(\/?)([a-zA-Z]+)([^>]*?)(\/?)>/g
+  let m
+  while ((m = re.exec(body))) {
+    if (m[1]) {
+      depth--
+      continue
+    }
+    if (depth === 0 && m[2] !== "defs" && m[2] !== "style") {
+      const id = /\sid="([^"]+)"/.exec(m[3])
+      if (!id) throw new Error("A top-level part without an id")
+      ids.push(id[1])
+    }
+    if (!m[4]) depth++
+  }
+  return ids
+}
+
 /** Size, photo box (news posters) and sample texts (Did You Know / engagement posts) of a template. */
 function describe(svg, kind) {
   const root = /<svg[^>]*>/.exec(svg)[0]
   const [, , width, height] = attr(root, "viewBox").split(/\s+/).map(Number)
-  const info = { width, height }
+  // Its layers (1.54): the top-level groups, bottom to top, as the editor shows them.
+  const info = { width, height, layers: rootLayers(svg) }
   if (kind === "news") {
     const tag = /<image id="photo" [^>]*>/.exec(svg)[0].replace(/\s(xlink:)?href="[^"]*"/g, "")
     const border = /<rect id="frame-border"[^>]*>/.exec(svg)

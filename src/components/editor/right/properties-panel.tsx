@@ -24,7 +24,11 @@ import { FieldRow, NumberField, Section, SliderField } from "../fields"
 import { useEditor, useEditorStore, useSelectedElement } from "../store"
 import { isPhotoSlot } from "@/lib/design/cover-collage"
 import { SlotProperties } from "./cover-collage"
-import { ImageProperties } from "./image-properties"
+import { ImageProperties, PictureTools } from "./image-properties"
+import { FiltersSection } from "./filters-section"
+import { isPhotoLayer } from "@/lib/brand-templates/layers"
+import { useCurrentSlide } from "../store"
+import type { ImageElement } from "@/lib/design/types"
 import { ShapeProperties } from "./shape-properties"
 import { SlideProperties } from "./slide-properties"
 import { TextProperties } from "./text-properties"
@@ -34,24 +38,9 @@ export function PropertiesPanel() {
   if (!el) return <SlideProperties />
   // A cover collage photo slot has its own, simpler panel.
   if (isPhotoSlot(el)) return <SlotProperties el={el} />
-  // A brand post's template layer (1.53): its texts and photo are changed in the Poster Maker.
-  if (el.type === "image" && el.templatePart) {
-    return (
-      <div>
-        <div className="border-b px-4 py-3">
-          <div className="truncate text-sm font-semibold">{el.name}</div>
-          <div className="text-xs text-muted-foreground">Template layer</div>
-        </div>
-        <p className="px-4 py-3 text-xs text-muted-foreground">
-          {el.templatePart === "back"
-            ? "The template's background, photo and fades. Change the photo in the Poster Maker."
-            : "The template's logo, headline, subtext and footer. Change the texts in the Poster Maker."}{" "}
-          Put your own pictures, cut-out people, text or shapes under, between or over the two template layers (Layers tab), or hide one.
-        </p>
-        <ArrangeSection el={el} />
-      </div>
-    )
-  }
+  // A brand post's template layer (1.54: each part of the template's SVG): shown, hidden, see-through, moved in
+  // the layer order; a photo layer has the post's photo(s) filters and tools. Texts change in the Poster Maker.
+  if (el.type === "image" && el.templatePart) return <TemplateLayerProperties el={el} />
   return (
     <div>
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
@@ -67,6 +56,36 @@ export function PropertiesPanel() {
       {el.type === "text" && <TextProperties el={el} />}
       {el.type === "image" && <ImageProperties el={el} />}
       {el.type === "shape" && <ShapeProperties el={el} />}
+      <ArrangeSection el={el} />
+    </div>
+  )
+}
+
+function TemplateLayerProperties({ el }: { el: ImageElement }) {
+  const store = useEditorStore()
+  const slide = useCurrentSlide()
+  const photos = isPhotoLayer(el.templatePart)
+    ? slide.design.elements.filter((e): e is ImageElement => e.type === "image" && !!e.carrier && !!e.src)
+    : []
+  return (
+    <div>
+      <div className="border-b px-4 py-3">
+        <div className="truncate text-sm font-semibold">{el.name}</div>
+        <div className="text-xs text-muted-foreground">Template layer{el.visible ? "" : " · hidden"}</div>
+      </div>
+      <p className="px-4 py-3 text-xs text-muted-foreground">
+        A layer of the template, as in its file. Hide it, make it see-through, or put your own pictures, cut-out people, text or shapes under or over it
+        (Layers tab). {photos.length ? "Its photo's filters and tools are below; the photo itself is changed in the Poster Maker." : "Its texts are changed in the Poster Maker."}
+      </p>
+      {photos.map((p, i) => (
+        <div key={p.id}>
+          <FiltersSection title={photos.length > 1 ? `Photo ${i + 1}: filters` : "Photo filters"} value={p.filter} onChange={(filter) => store.getState().updateElement(p.id, { filter }, { history: "filter" })} />
+          <PictureTools el={p} title={photos.length > 1 ? `Photo ${i + 1}: tools` : "Photo tools"} />
+        </div>
+      ))}
+      <Section title="See-through">
+        <SliderField label="Opacity" value={el.opacity} min={0} max={1} step={0.01} format={(v) => `${Math.round(v * 100)}%`} onChange={(opacity) => store.getState().updateElement(el.id, { opacity }, { history: "opacity" })} />
+      </Section>
       <ArrangeSection el={el} />
     </div>
   )

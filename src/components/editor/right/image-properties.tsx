@@ -4,7 +4,8 @@ import { useRef, useState } from "react"
 import { CheckCircle2, Crop, ImageUp, Loader2, RotateCcw, Scissors, Sparkles, Sun, Trash, TriangleAlert, Wallpaper, WandSparkles, X } from "lucide-react"
 import { toast } from "sonner"
 import { loadImage } from "@/lib/design/image-cache"
-import { autoLightColor, removeBackground, removePlainBackground, ToolCancelled } from "@/lib/image-tools"
+import { aiEnhance, autoLightColor, imageAi, removeBackground, removePlainBackground, ToolCancelled } from "@/lib/image-tools"
+import { FiltersSection } from "./filters-section"
 import { canEnhancePhoto, EnhanceCancelled, enhancePhoto, imageToBlob } from "@/lib/photo-enhance"
 import { errorMessage } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -30,6 +31,7 @@ export function ImageProperties({ el }: { el: ImageElement }) {
   return (
     <>
       {el.src && <PictureTools el={el} />}
+      {el.src && !el.templatePart && <FiltersSection value={el.filter} onChange={(filter) => update({ filter }, "filter")} />}
       {el.role === "logo" && (
         <Section title="Logo color">
           {el.logoVariant ? (
@@ -239,16 +241,17 @@ function ImageInfo({ el, upload }: { el: ImageElement; upload?: { status: string
   )
 }
 
-type Tool = "person" | "plain" | "enhance" | "auto"
+type Tool = "person" | "plain" | "enhance" | "auto" | "ai"
 
 /**
  * Picture tools (1.53), on this computer: cut the people out (with their hair) or a plain background (logos),
  * enhance (AI: sharper and bigger) and auto light & color. Each gives a new picture in the same place (Ctrl+Z
  * puts the old one back).
  */
-function PictureTools({ el }: { el: ImageElement }) {
+export function PictureTools({ el, title = "Picture tools" }: { el: ImageElement; title?: string }) {
   const store = useEditorStore()
   const slide = useCurrentSlide()
+  const ai = imageAi()
   const [work, setWork] = useState<{ tool: Tool; label: string; progress: number } | null>(null)
   const abort = useRef<AbortController | null>(null)
 
@@ -274,6 +277,17 @@ function PictureTools({ el }: { el: ImageElement }) {
           return
         }
         what = "no background"
+      } else if (tool === "ai") {
+        progress(0.2, `AI Enhance with ${ai?.name ?? "your AI"} (about 10–40 s)…`)
+        const r = await aiEnhance(source, ctrl.signal)
+        out = r.blob
+        what = "AI enhanced"
+        // The AI gives pictures up to about 1–2K: a smaller one than the original is made bigger here (sharp).
+        const back = await createImageBitmap(out)
+        if (Math.max(back.width, back.height) < Math.max(img.naturalWidth, img.naturalHeight) * 0.9 && canEnhancePhoto(back.width, back.height)) {
+          const up = await enhancePhoto(out, { onProgress: (f) => progress(0.6 + f * 0.35, "Making it full size…"), signal: ctrl.signal })
+          out = up.blob
+        }
       } else if (tool === "enhance") {
         if (canEnhancePhoto(img.naturalWidth, img.naturalHeight)) {
           const r = await enhancePhoto(source, { onProgress: (f) => progress(f, "Enhancing (AI)…"), signal: ctrl.signal })
@@ -295,10 +309,13 @@ function PictureTools({ el }: { el: ImageElement }) {
       }
       if (ctrl.signal.aborted) return
       const keep = { zoom: el.zoom, focusX: el.focusX, focusY: el.focusY, fit: el.fit }
+      // The template's own photo (its layer is what's selected): it stays selected.
+      const selected = store.getState().selectedId
       const ext = out.type === "image/png" ? "png" : "jpg"
       await importImageFiles(store, [new File([out], `${el.name} (${what}).${ext}`, { type: out.type })], { mode: "replace", slideId: slide.id, elementId: el.id })
       store.getState().updateElement(el.id, keep, { history: false })
-      toast.success(tool === "person" ? "Background removed" : tool === "plain" ? "Plain background removed" : "Picture enhanced", { description: "Ctrl+Z brings the old picture back." })
+      if (el.carrier && selected) store.getState().select(selected)
+      toast.success(tool === "person" ? "Background removed" : tool === "plain" ? "Plain background removed" : tool === "ai" ? `Enhanced by ${ai?.name ?? "AI"}` : "Picture enhanced", { description: "Ctrl+Z brings the old picture back." })
     } catch (e) {
       if (e instanceof ToolCancelled || e instanceof EnhanceCancelled || ctrl.signal.aborted) return
       toast.error("Couldn't change the picture", { description: errorMessage(e) })
@@ -315,7 +332,16 @@ function PictureTools({ el }: { el: ImageElement }) {
   )
 
   return (
-    <Section title="Picture tools">
+    <Section title={title}>
+      <Button
+        size="sm"
+        className="justify-start bg-violet-600 text-white hover:bg-violet-600/90"
+        disabled={!!work}
+        onClick={() => (ai ? void run("ai") : toast.info("AI Enhance needs your own Gemini or OpenAI key", { description: "Add one in Settings → AI (Gemini: aistudio.google.com/apikey). The other tools work without it." }))}
+        title={ai ? `Sends the picture to ${ai.name}'s image AI (your key): back sharper, cleaner and better lit, nothing added or changed. Costs what ${ai.name} charges for one picture.` : "Needs your own Gemini or OpenAI key (Settings → AI)"}
+      >
+        {work?.tool === "ai" ? <Loader2 className="animate-spin" /> : <Sparkles />} AI Enhance{ai ? ` (${ai.name})` : ""}
+      </Button>
       <div className="grid grid-cols-2 gap-1.5">
         {button("person", Scissors, "Remove background", "AI: cuts the people out with their hair (about 10–30 s)")}
         {button("plain", Wallpaper, "Plain background", "Logos and graphics on one plain color: that color goes")}

@@ -9,6 +9,7 @@ import { slotDef } from "@/lib/design/cover-collage"
 import { coverLayout, focusFromImageOffset, frameLayout, konvaFillAttrs } from "@/lib/design/geometry"
 import { glowBitmap, isGlowShape } from "@/lib/design/glow"
 import { useCanvasImage } from "@/lib/design/image-cache"
+import { filterCss, filteredBitmap } from "@/lib/design/filters"
 import {
   highQualityImageSceneFunc,
   imageDrawAttrs,
@@ -158,8 +159,10 @@ function ImageNode({ el, interactive, cropping, viewScale, handlers, templateIma
     return <CropModeImage el={el} image={image} viewScale={viewScale} onCropChange={handlers.onCropChange} />
   }
 
-  // A backdrop that follows the photo (1.51 poster designs): drawn as its blurred copy.
-  const bitmapImage = image && el.blurred ? blurredCopy(image) : image
+  // A backdrop that follows the photo (1.51 poster designs): drawn as its blurred copy; a filter (1.54) on top.
+  const css = filterCss(el.filter)
+  const unfiltered = image && el.blurred ? blurredCopy(image) : image
+  const bitmapImage = unfiltered && css ? (filteredBitmap(unfiltered, css) as unknown as HTMLImageElement) : unfiltered
   const draw = image && bitmapImage ? imageDrawAttrs(el, el.blurred ? { naturalWidth: bitmapImage.width, naturalHeight: bitmapImage.height } : image) : null
   // A zoomed-out poster photo: its blurred copy fills the frame behind it.
   const backdrop = image ? blurBackdrop(el, image) : null

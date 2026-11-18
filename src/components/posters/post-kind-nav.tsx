@@ -4,6 +4,7 @@ import { BadgeHelp, Lightbulb, MessagesSquare, Newspaper } from "lucide-react"
 import { brandPostId, brandPostTemplate, POST_KINDS, templatesOf, templateThumb, type PostBrand } from "@/lib/brand-templates/catalog"
 import type { BrandPostKind } from "@/lib/brand-templates/types"
 import { cn } from "@/lib/utils"
+import { FILTER_PRESETS, type ImageFilter } from "@/lib/design/filters"
 
 const ICONS: Record<BrandPostKind, typeof Newspaper> = { news: Newspaper, dyk: Lightbulb, engagement: MessagesSquare }
 const HINTS: Record<BrandPostKind, string> = {
@@ -83,6 +84,32 @@ export function TemplateGallery({ kind, brand, value, onChange }: { kind: BrandP
           </button>
         )
       })}
+    </div>
+  )
+}
+
+/** A photo's filter in the Poster Maker (1.54): None or a preset (fine-tuned in the editor). */
+export function PhotoFilterChips({ value, onChange, label = "Photo filter" }: { value: ImageFilter | null | undefined; onChange: (filter: ImageFilter | null) => void; label?: string }) {
+  const custom = !!value && !value.preset
+  return (
+    <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label={label}>
+      <span className="mr-1 text-[11px] text-muted-foreground">{label}:</span>
+      {[{ id: null as string | null, name: "None" }, ...FILTER_PRESETS.map((p) => ({ id: p.id as string | null, name: p.name }))].map((p) => {
+        const on = p.id === null ? !value : value?.preset === p.id
+        return (
+          <button
+            key={p.id ?? "none"}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(p.id === null ? null : { ...FILTER_PRESETS.find((x) => x.id === p.id)!.values, preset: p.id })}
+            className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", on ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-accent")}
+          >
+            {p.name}
+          </button>
+        )
+      })}
+      {custom && <span className="text-[11px] text-muted-foreground">· set in the editor</span>}
     </div>
   )
 }
